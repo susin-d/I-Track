@@ -1,0 +1,26 @@
+
+> server@1.0.0 start
+> node dist/index.js
+
+◇ injected env (8) from .env // tip: ⌘ override existing { override: true }
+I-TRACK API listening on http://localhost:4000
+[0mGET /api/v1/health [32m200[0m 4.217 ms - 49[0m
+[0mGET /api/v1/health [32m200[0m 0.691 ms - 49[0m
+[0mPOST /api/v1/auth/login [33m401[0m 58.741 ms - 33[0m
+[0mPOST /api/v1/auth/register [32m201[0m 581.110 ms - 917[0m
+[0mPOST /api/v1/auth/login [32m200[0m 324.681 ms - 888[0m
+[0mGET /api/v1/dashboard [32m200[0m 609.311 ms - 14676[0m
+[0mPOST /api/v1/auth/login [32m200[0m 406.560 ms - 888[0m
+[0mGET /api/v1/dashboard [32m200[0m 182.006 ms - 14676[0m
+[0mGET /api/v1/dashboard [36m304[0m 161.500 ms - -[0m
+[0mGET /api/v1/dashboard [36m304[0m 163.619 ms - -[0m
+[0mGET /api/v1/dashboard [36m304[0m 143.994 ms - -[0m
+[0mGET /api/v1/dashboard [36m304[0m 168.214 ms - -[0m
+[0mGET /api/v1/dashboard [36m304[0m 257.792 ms - -[0m
+[0mGET /api/v1/dashboard [36m304[0m 165.364 ms - -[0m
+[0mGET /api/v1/dashboard [36m304[0m 146.585 ms - -[0m
+[0mGET /api/v1/dashboard [36m304[0m 156.497 ms - -[0m
+[0mPOST /api/v1/auth/login [32m200[0m 317.584 ms - 888[0m
+[0mGET /api/v1/dashboard [32m200[0m 157.191 ms - 14676[0m
+[0mGET /api/v1/dashboard [36m304[0m 147.953 ms - -[0m
+[0mGET /api/v1/dashboard [36m304[0m 182.760 ms - -[0m

@@ -1,0 +1,26 @@
+
+> server@1.0.0 dev
+> tsx watch src/index.ts
+
+◇ injected env (8) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+11:24:17 AM [tsx] change in ./src\index.ts Rerunning...
+c◇ injected env (8) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+I-TRACK API listening on http://localhost:4000
+11:24:42 AM [tsx] change in ./src\index.ts Restarting...
+c◇ injected env (8) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+I-TRACK API listening on http://localhost:4000
+11:31:00 AM [tsx] change in ./src\routes\ai.ts Restarting...
+c◇ injected env (8) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+I-TRACK API listening on http://localhost:4000
+11:31:06 AM [tsx] change in ./src\apiCatalog.ts Restarting...
+c◇ injected env (8) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+I-TRACK API listening on http://localhost:4000
+11:31:10 AM [tsx] change in ./src\openapi.ts Restarting...
+c◇ injected env (8) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+I-TRACK API listening on http://localhost:4000
+11:35:26 AM [tsx] change in ./src\openapi.ts Restarting...
+c◇ injected env (8) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+I-TRACK API listening on http://localhost:4000
+11:55:37 AM [tsx] change in ./src\index.ts Restarting...
+c◇ injected env (8) from .env // tip: ⌘ suppress logs { quiet: true }
+I-TRACK API listening on http://localhost:4000
