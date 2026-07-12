@@ -1,21 +1,30 @@
 import bcrypt from "bcryptjs";
 import { connectDb } from "./config/db.js";
 import { Organization } from "./models/Organization.js";
+import { Cycle } from "./models/Cycle.js";
 import { Project } from "./models/Project.js";
 import { Sprint } from "./models/Sprint.js";
 import { Ticket } from "./models/Ticket.js";
 import { User } from "./models/User.js";
 import { seedUsers, ticketTemplates } from "./data/seedData.js";
+import { defaultSlaPolicy, getTicketSlaStatus, slaFieldsForTicket, statusTransition } from "./services/sla.js";
 
 async function seed() {
   await connectDb();
-  await Promise.all([Organization.deleteMany({}), User.deleteMany({}), Project.deleteMany({}), Sprint.deleteMany({}), Ticket.deleteMany({})]);
+  await Promise.all([Organization.deleteMany({}), User.deleteMany({}), Project.deleteMany({}), Sprint.deleteMany({}), Cycle.deleteMany({}), Ticket.deleteMany({})]);
 
   const passwordHash = await bcrypt.hash("Password123!", 10);
   const organization = await Organization.create({
     name: "I-TRACK Demo Workspace",
     slug: "itrack-demo",
     plan: "scale",
+    settings: {
+      riskThreshold: 65,
+      sprintLengthDays: 14,
+      timezone: "Asia/Calcutta",
+      aiEnabled: true,
+      slaPolicy: defaultSlaPolicy,
+    },
   });
   const users = await User.insertMany(seedUsers.map((user, index) => ({ ...user, role: index === 0 ? "admin" : user.role, organization: organization._id, inviteStatus: "active", passwordHash })));
   organization.owner = users[0]._id;
@@ -44,9 +53,38 @@ async function seed() {
     velocityHistory: [92, 104, 97, 111, 106],
     riskScore: 73,
   });
+  await Cycle.create({
+    organization: organization._id,
+    name: "Cycle 2026-Q3 Alpha",
+    goal: "Ship the first complete sprint intelligence workflow.",
+    status: "active",
+    startDate: new Date("2026-07-01"),
+    endDate: new Date("2026-08-15"),
+    sprints: [sprint._id],
+  });
 
   await Ticket.insertMany(
     ticketTemplates.map(([ticketId, title, status, priority, points, blocked, labels], index) => ({
+      ...(() => {
+        const createdAt = new Date(2026, 6, 1 + index);
+        const resolvedAt = status === "Done" ? new Date(2026, 6, 8 + index) : undefined;
+        const firstRespondedAt = index % 2 === 0 ? new Date(2026, 6, 2 + index) : undefined;
+        const slaFields = slaFieldsForTicket(priority, createdAt, defaultSlaPolicy);
+        return {
+          ...slaFields,
+          firstRespondedAt,
+          resolvedAt,
+          slaStatus: getTicketSlaStatus({ status, firstRespondedAt, resolvedAt, firstResponseDueAt: slaFields.firstResponseDueAt, resolutionDueAt: slaFields.resolutionDueAt }),
+          statusTransitions: [
+            statusTransition(undefined, "Backlog", createdAt, String(users[0]._id)),
+            ...(status !== "Backlog" ? [statusTransition("Backlog", "In Progress", new Date(2026, 6, 3 + index), String(users[index % users.length]._id))] : []),
+            ...(status === "In Review" || status === "Done" ? [statusTransition("In Progress", "In Review", new Date(2026, 6, 6 + index), String(users[index % users.length]._id))] : []),
+            ...(status === "Done" ? [statusTransition("In Review", "Done", resolvedAt!, String(users[index % users.length]._id))] : []),
+          ],
+          createdAt,
+          updatedAt: resolvedAt ?? new Date(),
+        };
+      })(),
       organization: organization._id,
       ticketId,
       title,

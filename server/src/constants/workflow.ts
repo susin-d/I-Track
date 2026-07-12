@@ -2,6 +2,7 @@ export const ticketStatuses = ["Backlog", "To Do", "In Progress", "In Review", "
 export const priorityLevels = ["low", "medium", "high", "critical"] as const;
 export const projectStatuses = ["planning", "active", "paused", "done"] as const;
 export const sprintStatuses = ["planned", "active", "completed"] as const;
+export const cycleStatuses = ["planned", "active", "completed"] as const;
 export const userRoles = ["admin", "manager", "engineer", "designer"] as const;
 
 export const ticketPopulation = [

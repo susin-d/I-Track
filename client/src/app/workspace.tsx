@@ -35,6 +35,7 @@ const serverData: any = {
   auditLogs: [],
   sessions: [],
   reports: null,
+  sla: null,
 };
 const WorkspaceContext = React.createContext<{
   user: any;
@@ -42,6 +43,7 @@ const WorkspaceContext = React.createContext<{
   dashboard: any;
   notifications: any[];
   reports: any;
+  sla: any;
   sessions: any[];
   auditLogs: any[];
   integrations: any[];
@@ -88,6 +90,7 @@ export function ApiGate({
     dashboard: null,
     notifications: [],
     reports: null,
+    sla: null,
     sessions: [],
     auditLogs: [],
     integrations: [],
@@ -111,6 +114,7 @@ export function ApiGate({
   const loadData = async () => {
     try {
       const isReports = location.pathname.startsWith("/reports");
+      const isSla = location.pathname.startsWith("/sla");
       const isSessions = location.pathname.startsWith("/sessions") || location.pathname.startsWith("/settings");
       const isAuditLogs = location.pathname.startsWith("/audit-logs");
       const isIntegrations = location.pathname.startsWith("/integrations");
@@ -122,6 +126,10 @@ export function ApiGate({
 
       const reportsPromise = isReports
         ? api<any>("/reports").catch(() => null)
+        : Promise.resolve(null);
+
+      const slaPromise = isSla
+        ? api<any>("/sla").catch(() => null)
         : Promise.resolve(null);
 
       const sessionsPromise = isSessions
@@ -145,6 +153,7 @@ export function ApiGate({
         dashboard,
         notificationsData,
         reportsData,
+        slaData,
         sessionsData,
         auditLogsData,
         apiTokens,
@@ -154,6 +163,7 @@ export function ApiGate({
         dashboardPromise,
         notificationsPromise,
         reportsPromise,
+        slaPromise,
         sessionsPromise,
         auditLogsPromise,
         apiTokensPromise,
@@ -207,9 +217,15 @@ export function ApiGate({
         project: t.project?.name || "",
         labels: t.labels || [],
         blocked: t.blocked,
+        rank: t.rank ?? 0,
         watched: (t.watchers || []).some(
           (w: any) => String(w._id || w) === String(me.user.id),
         ),
+        slaStatus: t.slaStatus,
+        firstResponseDueAt: t.firstResponseDueAt,
+        resolutionDueAt: t.resolutionDueAt,
+        firstRespondedAt: t.firstRespondedAt,
+        resolvedAt: t.resolvedAt,
         sprintId:
           t.sprint?._id || (typeof t.sprint === "string" ? t.sprint : ""),
         sprintName: t.sprint?.name || "",
@@ -234,6 +250,7 @@ export function ApiGate({
         dashboard,
         notifications: notificationsData.notifications || [],
         reports: isReports ? reportsData?.reports : serverData.reports,
+        sla: isSla ? slaData : serverData.sla,
         sessions: isSessions ? sessionsData.sessions || [] : serverData.sessions || [],
         auditLogs: isAuditLogs ? auditLogsData.events || [] : serverData.auditLogs || [],
         integrations: isIntegrations
@@ -263,6 +280,7 @@ export function ApiGate({
         dashboard,
         notifications: notificationsData.notifications || [],
         reports: isReports ? reportsData?.reports : serverData.reports,
+        sla: isSla ? slaData : serverData.sla,
         sessions: isSessions ? sessionsData.sessions || [] : serverData.sessions || [],
         auditLogs: isAuditLogs ? auditLogsData.events || [] : serverData.auditLogs || [],
         integrations: isIntegrations
@@ -320,6 +338,7 @@ export function ApiGate({
           dashboard: next.dashboard,
           notifications: next.notifications,
           reports: next.reports,
+          sla: next.sla,
           sessions: next.sessions,
           auditLogs: next.auditLogs,
           integrations: next.integrations,
@@ -362,6 +381,7 @@ export function ApiGate({
         dashboard: next.dashboard,
         notifications: next.notifications,
         reports: next.reports,
+        sla: next.sla,
         sessions: next.sessions,
         auditLogs: next.auditLogs,
         integrations: next.integrations,

@@ -12,6 +12,13 @@ export type Ticket = {
   assignee: string;
   project: string;
   labels: string[];
+  slaStatus?: "healthy" | "due_soon" | "breached" | "resolved";
+  firstResponseDueAt?: string;
+  resolutionDueAt?: string;
+  firstRespondedAt?: string;
+  resolvedAt?: string;
+  sprintId?: string;
+  sprintName?: string;
   blocked?: boolean;
   watched?: boolean;
 };

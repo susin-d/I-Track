@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   priorityLevels,
+  cycleStatuses,
   projectStatuses,
   sprintStatuses,
   ticketStatuses,
@@ -29,6 +30,15 @@ export const sprintSchema = z.object({
   completedPoints: z.number().min(0).default(0),
   velocityHistory: z.array(z.number()).default([]),
   riskScore: z.number().min(0).max(100).default(0),
+});
+
+export const cycleSchema = z.object({
+  name: z.string().min(2),
+  goal: z.string().default(""),
+  status: z.enum(cycleStatuses).default("planned"),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+  sprints: z.array(z.string()).default([]),
 });
 
 export const ticketSchema = z.object({
@@ -63,4 +73,10 @@ export const settingsSchema = z.object({
   sprintLengthDays: z.number().min(1).max(60),
   timezone: z.string().min(2),
   aiEnabled: z.boolean(),
+  slaPolicy: z.object({
+    critical: z.object({ firstResponseHours: z.number().min(0.25).max(8760), resolutionHours: z.number().min(0.25).max(8760) }),
+    high: z.object({ firstResponseHours: z.number().min(0.25).max(8760), resolutionHours: z.number().min(0.25).max(8760) }),
+    medium: z.object({ firstResponseHours: z.number().min(0.25).max(8760), resolutionHours: z.number().min(0.25).max(8760) }),
+    low: z.object({ firstResponseHours: z.number().min(0.25).max(8760), resolutionHours: z.number().min(0.25).max(8760) }),
+  }).optional(),
 });

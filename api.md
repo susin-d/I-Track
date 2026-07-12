@@ -119,6 +119,11 @@ Without confirmation, destructive actions return `409`:
 | `POST` | `/sprints/:id/start` | leaders | No |
 | `POST` | `/sprints/:id/complete` | leaders | Requires confirmation |
 | `POST` | `/sprints/:id/reopen` | leaders | No |
+| `GET` | `/cycles` | all | No |
+| `POST` | `/cycles` | leaders | No |
+| `GET` | `/cycles/:id` | all | No |
+| `PATCH` | `/cycles/:id` | leaders | No |
+| `DELETE` | `/cycles/:id` | leaders | Requires confirmation |
 
 ## Tickets
 
@@ -170,12 +175,17 @@ Without confirmation, destructive actions return `409`:
 | `GET` | `/integrations/:kind` | admin | No |
 | `POST` | `/integrations/:kind` | admin | No |
 | `DELETE` | `/integrations/:kind/:id` | admin | Requires confirmation |
+| `GET` | `/settings` | all | No |
+| `PATCH` | `/settings` | admin | No |
+| `GET` | `/sla` | all | No |
+| `PATCH` | `/sla/policy` | leaders | No |
 | `PATCH` | `/organization` | admin | No |
 | `DELETE` | `/organization` | admin | Requires confirmation |
 | `GET` | `/organization/usage` | admin | No |
 | `GET` | `/export` | admin | No |
 | `POST` | `/import/resources` | admin | No |
 | `GET` | `/reports` | all | No |
+| `GET` | `/reports/cycle-time` | all | No |
 | `GET` | `/dashboard` | all | No |
 
 ## Intelligence
@@ -187,6 +197,7 @@ Without confirmation, destructive actions return `409`:
 | `GET` | `/ai/endpoints` | all | No |
 | `POST` | `/ai/execute` | all | No |
 | `GET` | `/ai/models` | all | No |
+| `POST` | `/ai/chat` | all | No |
 | `POST` | `/ai/generate-tickets` | all | No |
 | `POST` | `/ai/confirm-ticket-plan` | leaders | No |
 

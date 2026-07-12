@@ -2,6 +2,7 @@ import mongoose, { Schema } from "mongoose";
 
 export type TicketStatus = "Backlog" | "To Do" | "In Progress" | "In Review" | "Done";
 export type TicketPriority = "low" | "medium" | "high" | "critical";
+export type TicketSlaStatus = "healthy" | "due_soon" | "breached" | "resolved";
 
 export interface ITicket {
   organization: mongoose.Types.ObjectId;
@@ -24,10 +25,19 @@ export interface ITicket {
   comments: { author: string; body: string; createdAt: Date }[];
   workLogs: { author: string; hours: number; note: string; createdAt: Date }[];
   history: { event: string; createdAt: Date }[];
+  statusTransitions: { from?: TicketStatus; to: TicketStatus; at: Date; actor?: mongoose.Types.ObjectId }[];
   watchers: mongoose.Types.ObjectId[];
   attachments: { name: string; url: string; mimeType?: string; size?: number; uploadedBy: mongoose.Types.ObjectId; createdAt: Date }[];
+  slaPolicy: { firstResponseHours: number; resolutionHours: number };
+  firstResponseDueAt: Date;
+  resolutionDueAt: Date;
+  firstRespondedAt?: Date;
+  resolvedAt?: Date;
+  slaStatus: TicketSlaStatus;
   rank: number;
   archivedAt?: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 const ticketSchema = new Schema<ITicket>(
@@ -52,8 +62,18 @@ const ticketSchema = new Schema<ITicket>(
     comments: [{ author: String, body: String, createdAt: Date }],
     workLogs: [{ author: String, hours: Number, note: String, createdAt: Date }],
     history: [{ event: String, createdAt: Date }],
+    statusTransitions: [{ from: String, to: String, at: Date, actor: { type: Schema.Types.ObjectId, ref: "User" } }],
     watchers: [{ type: Schema.Types.ObjectId, ref: "User" }],
     attachments: [{ name: String, url: String, mimeType: String, size: Number, uploadedBy: { type: Schema.Types.ObjectId, ref: "User" }, createdAt: Date }],
+    slaPolicy: {
+      firstResponseHours: { type: Number, default: 8 },
+      resolutionHours: { type: Number, default: 72 },
+    },
+    firstResponseDueAt: { type: Date, default: () => new Date(Date.now() + 8 * 60 * 60 * 1000) },
+    resolutionDueAt: { type: Date, default: () => new Date(Date.now() + 72 * 60 * 60 * 1000) },
+    firstRespondedAt: Date,
+    resolvedAt: Date,
+    slaStatus: { type: String, default: "healthy" },
     rank: { type: Number, default: 0 },
     archivedAt: Date,
   },

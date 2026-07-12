@@ -14,3 +14,26 @@ test("API catalog includes every primary product area", () => {
     assert.ok(group in apiCatalog.groups);
   }
 });
+
+test("API catalog includes AI-callable app feature actions", () => {
+  const endpoints = new Set(Object.values(apiCatalog.groups).flat());
+  for (const endpoint of [
+    "POST /tickets",
+    "PATCH /tickets/:id/status",
+    "POST /tickets/:id/comments",
+    "POST /projects",
+    "PUT /projects/:id/members",
+    "POST /sprints/:id/start",
+    "POST /cycles",
+    "GET /sla",
+    "PATCH /sla/policy",
+    "GET /reports/cycle-time",
+    "POST /invitations",
+    "PATCH /settings",
+    "GET /reports",
+    "POST /import/resources",
+    "POST /ai/chat",
+  ]) {
+    assert.ok(endpoints.has(endpoint), `${endpoint} must be present in apiCatalog`);
+  }
+});

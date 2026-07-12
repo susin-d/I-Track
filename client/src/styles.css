@@ -981,6 +981,11 @@ td:first-child small {
   border-radius: 11px;
   padding: 10px;
   min-height: 560px;
+  transition: background 150ms ease, box-shadow 150ms ease;
+}
+.kanban > section.drag-over {
+  background: color-mix(in srgb, var(--blue) 10%, var(--surface));
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--blue) 55%, transparent);
 }
 .kanban > section > header {
   display: flex;
@@ -1024,6 +1029,18 @@ td:first-child small {
   padding: 12px;
   margin-bottom: 9px;
   box-shadow: 0 2px 6px #00000009;
+  cursor: grab;
+  transition: opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+.ticket-card:active {
+  cursor: grabbing;
+}
+.ticket-card.dragging {
+  opacity: 0.45;
+  transform: scale(0.98);
+}
+.ticket-card.drag-before {
+  box-shadow: 0 -3px 0 var(--blue), 0 2px 6px #00000009;
 }
 .ticket-card > div:first-child {
   display: flex;
@@ -1168,6 +1185,105 @@ td:first-child small {
 .risk-value {
   color: var(--orange);
 }
+
+.sla-policy-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.sla-policy-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 1fr;
+  gap: 12px;
+  align-items: end;
+}
+
+.sla-policy-row > b {
+  padding-bottom: 13px;
+}
+
+.check-list {
+  display: grid;
+  gap: 8px;
+  max-height: 180px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.check-list label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.cycle-list {
+  display: grid;
+  gap: 12px;
+}
+
+.cycle-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px 140px 38px;
+  gap: 16px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.cycle-row > div:first-child span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cycle-row p {
+  margin: 6px 0;
+  color: var(--muted);
+}
+
+.cycle-row small {
+  color: var(--muted);
+}
+
+.missing-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.missing-feature {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.missing-feature span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.missing-feature b {
+  display: block;
+  margin: 12px 0 6px;
+}
+
+.missing-feature p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .donut {
   height: 230px;
   position: relative;
@@ -3123,7 +3239,47 @@ td:first-child small {
 .ai-panel-head > div { flex: 1; }
 .ai-panel-head b { display: block; font-size: 14px; }
 .ai-panel-head small { color: var(--muted); font-size: 11px; }
-.ai-panel-head .ai-panel-actions { display: flex; gap: 4px; }
+.ai-panel-head .ai-panel-actions {
+  display: flex;
+  gap: 4px;
+  position: relative;
+}
+.ai-actions-menu {
+  position: absolute;
+  right: 0;
+  top: 42px;
+  z-index: 120;
+  width: min(260px, calc(100vw - 32px));
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 18px 45px rgba(0,0,0,0.16);
+}
+.ai-actions-menu button {
+  width: 100%;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.ai-actions-menu button:hover {
+  background: var(--surface-2);
+  color: var(--purple-strong);
+}
+.ai-actions-menu svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
 
 .ai-chat-body {
   flex: 1;
@@ -3226,6 +3382,35 @@ td:first-child small {
   background: linear-gradient(135deg, var(--purple), var(--blue));
   color: #fff;
   border-top-right-radius: 4px;
+}
+.ai-formatted {
+  display: grid;
+  gap: 6px;
+}
+.ai-format-line {
+  min-width: 0;
+}
+.ai-format-line.bullet,
+.ai-format-line.number {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 4px;
+}
+.ai-format-marker {
+  color: var(--muted);
+  font-weight: 700;
+}
+.ai-format-line strong {
+  font-weight: 750;
+}
+.ai-format-line code {
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.92em;
+  word-break: break-word;
 }
 .ai-tool-badge {
   display: inline-flex;

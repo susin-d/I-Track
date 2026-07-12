@@ -18,6 +18,7 @@ const destructiveOperations = [
   "POST /projects/:id/archive",
   "DELETE /sprints/:id",
   "POST /sprints/:id/complete",
+  "DELETE /cycles/:id",
   "DELETE /tickets/:id",
   "POST /tickets/:id/archive",
   "DELETE /tickets/:id/watch",
@@ -31,6 +32,12 @@ const destructiveOperations = [
 ] as const;
 
 const destructiveKeys = new Set<string>(destructiveOperations);
+const internalToolEndpoints = new Set([
+  "GET /ai/endpoints",
+  "POST /ai/execute",
+  "POST /ai/chat",
+  "GET /ai/models",
+]);
 
 export function normalizeAiPath(path: string) {
   const [pathname, query = ""] = path.trim().split("?", 2);
@@ -68,7 +75,7 @@ export function catalogEndpointFor(method: string, path: string) {
 
 export function aiEndpointsForRole(role: UserRole): AiEndpoint[] {
   return Object.entries(apiCatalog.groups).flatMap(([group, endpoints]) =>
-    endpoints.map((endpoint) => {
+    endpoints.filter((endpoint) => !internalToolEndpoints.has(endpoint)).map((endpoint) => {
       const [method, path] = endpoint.split(" ") as [string, string];
       const roles = rolesForEndpoint(method, path);
       return {

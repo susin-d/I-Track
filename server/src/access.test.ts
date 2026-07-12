@@ -7,7 +7,10 @@ test("RBAC protects administrative and planning endpoints", () => {
   assert.deepEqual(rolesForEndpoint("GET", "/audit-logs"), ["admin"]);
   assert.deepEqual(rolesForEndpoint("POST", "/invitations"), ["admin"]);
   assert.deepEqual(rolesForEndpoint("DELETE", "/organization"), ["admin"]);
+  assert.deepEqual(rolesForEndpoint("PATCH", "/settings"), ["admin"]);
+  assert.deepEqual(rolesForEndpoint("PATCH", "/sla/policy"), ["admin", "manager"]);
   assert.deepEqual(rolesForEndpoint("POST", "/projects"), ["admin", "manager"]);
+  assert.deepEqual(rolesForEndpoint("POST", "/cycles"), ["admin", "manager"]);
   assert.deepEqual(rolesForEndpoint("POST", "/sprints/123/start"), ["admin", "manager"]);
   assert.deepEqual(rolesForEndpoint("PATCH", "/tickets/123"), ["admin", "manager"]);
 });
@@ -25,6 +28,12 @@ test("OpenAPI document covers the catalog and declares bearer security and roles
   const operation = openApiDocument.paths["/projects"]?.post as { security?: unknown; "x-allowed-roles"?: string[] };
   assert.ok(operation.security);
   assert.deepEqual(operation["x-allowed-roles"], ["admin", "manager"]);
+  const settings = openApiDocument.paths["/settings"]?.patch as { security?: unknown; "x-allowed-roles"?: string[] };
+  assert.ok(settings.security);
+  assert.deepEqual(settings["x-allowed-roles"], ["admin"]);
+  const cycle = openApiDocument.paths["/cycles"]?.post as { security?: unknown; "x-allowed-roles"?: string[] };
+  assert.ok(cycle.security);
+  assert.deepEqual(cycle["x-allowed-roles"], ["admin", "manager"]);
   const login = openApiDocument.paths["/auth/login"]?.post as { security?: unknown[] };
   assert.deepEqual(login.security, []);
 });

@@ -15,7 +15,9 @@ export const nav: NavGroup[] = [
       ["/projects", "FolderKanban", "Projects"],
       ["/backlog", "ListTodo", "Backlog"],
       ["/board", "Columns3", "Board"],
+      ["/cycles", "Repeat2", "Cycles"],
       ["/sprints", "Timer", "Sprints"],
+      ["/sla", "ShieldCheck", "SLA"],
     ],
   },
   {

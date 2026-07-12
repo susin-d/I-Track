@@ -375,16 +375,82 @@ type AiChatMessage = {
   id: number;
   role: "user" | "assistant";
   content: string;
-  toolCalls?: { name: string; args: any; result: any; error?: boolean }[];
+  toolCalls?: { name: string; args?: any; arguments?: any; result: any; error?: boolean }[];
   requiresConfirmation?: boolean;
   pendingAction?: { method: string; path: string; body?: any; description: string };
 };
+
+type FormattedPart = { kind: "text" | "strong" | "code"; text: string };
+type FormattedBlock = { type: "paragraph" | "bullet" | "number"; parts: FormattedPart[]; index?: string };
+
+const aiActionPrompts = [
+  { label: "Show what you can do", icon: "ListChecks", prompt: "Show what you can do in this workspace. Group actions by tickets, projects, sprints, team, resources, reports, settings, and integrations." },
+  { label: "Create a ticket", icon: "FilePlus2", prompt: "Help me create a ticket. Ask for any missing title, project, assignee, sprint, priority, due date, and description before creating it." },
+  { label: "Show my tickets", icon: "Ticket", prompt: "Show my tickets and summarize what needs attention first." },
+  { label: "Summarize sprint status", icon: "Timer", prompt: "Summarize the current sprint status, risks, blockers, and recommended next actions." },
+  { label: "Show blockers", icon: "CircleSlash2", prompt: "Show blocked tickets and explain what is blocking delivery." },
+  { label: "Invite a teammate", icon: "UserPlus", prompt: "Help me invite a teammate. Ask for their name, email, role, and capacity before sending the invitation." },
+  { label: "Manage workspace resources", icon: "Boxes", prompt: "Help me manage workspace resources. Show available resource types and ask what I want to create, update, or delete." },
+  { label: "Show reports", icon: "ChartNoAxesCombined", prompt: "Show reports and summarize delivery, workload, risk, and velocity insights." },
+];
+
+function formatInlineMarkdown(text: string): FormattedPart[] {
+  const parts: FormattedPart[] = [];
+  const pattern = /(`([^`]+)`|\*\*([^*]+)\*\*)/g;
+  let last = 0;
+  for (const match of text.matchAll(pattern)) {
+    if (match.index === undefined) continue;
+    if (match.index > last) parts.push({ kind: "text", text: text.slice(last, match.index) });
+    if (match[2]) parts.push({ kind: "code", text: match[2] });
+    if (match[3]) parts.push({ kind: "strong", text: match[3] });
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) parts.push({ kind: "text", text: text.slice(last) });
+  return parts.length ? parts : [{ kind: "text", text }];
+}
+
+function aiMessageBlocks(content: string): FormattedBlock[] {
+  return content
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const bullet = line.match(/^[-*]\s+(.+)$/);
+      if (bullet) return { type: "bullet", parts: formatInlineMarkdown(bullet[1]) };
+      const numbered = line.match(/^(\d+[.)])\s+(.+)$/);
+      if (numbered) return { type: "number", index: numbered[1], parts: formatInlineMarkdown(numbered[2]) };
+      return { type: "paragraph", parts: formatInlineMarkdown(line) };
+    });
+}
+
+function AiFormattedMessage({ content }: { content: string }) {
+  const blocks = aiMessageBlocks(content);
+  return (
+    <div className="ai-formatted">
+      {blocks.map((block, blockIndex) => (
+        <div className={cx("ai-format-line", block.type)} key={`${block.type}-${blockIndex}`}>
+          {block.type === "bullet" && <span className="ai-format-marker">*</span>}
+          {block.type === "number" && <span className="ai-format-marker">{block.index}</span>}
+          <span>
+            {block.parts.map((part, partIndex) => {
+              const key = `${blockIndex}-${partIndex}`;
+              if (part.kind === "strong") return <strong key={key}>{part.text}</strong>;
+              if (part.kind === "code") return <code key={key}>{part.text}</code>;
+              return <React.Fragment key={key}>{part.text}</React.Fragment>;
+            })}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function AiAgentPanel({ open, onClose, toast }: { open: boolean; onClose: () => void; toast: (s: string) => void }) {
   const [messages, setMessages] = useState<AiChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [expandedTools, setExpandedTools] = useState<Set<number>>(new Set());
+  const [actionsOpen, setActionsOpen] = useState(false);
   const bodyRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
   const { user } = useWorkspace();
@@ -453,6 +519,11 @@ function AiAgentPanel({ open, onClose, toast }: { open: boolean; onClose: () => 
 
   const quickActions = ["Show my tickets", "Sprint status", "Create a ticket", "Team overview", "Show backlog"];
 
+  const runAction = (prompt: string) => {
+    setActionsOpen(false);
+    sendMessage(prompt);
+  };
+
   if (!open) return null;
 
   return (
@@ -466,8 +537,24 @@ function AiAgentPanel({ open, onClose, toast }: { open: boolean; onClose: () => 
             <small>Powered by AI · Ready to help</small>
           </div>
           <div className="ai-panel-actions">
+            <button className="icon-btn" onClick={() => setActionsOpen((value) => !value)} title="AI actions" aria-haspopup="menu" aria-expanded={actionsOpen}>
+              <Icons.WandSparkles size={16} />
+            </button>
             <button className="icon-btn" onClick={clearChat} title="Clear chat"><Icons.Trash2 size={16} /></button>
             <button className="icon-btn" onClick={onClose} title="Close (Ctrl+J)"><Icons.X size={18} /></button>
+            {actionsOpen && (
+              <div className="ai-actions-menu" role="menu">
+                {aiActionPrompts.map((action) => {
+                  const Icon = (Icons as any)[action.icon];
+                  return (
+                    <button key={action.label} role="menuitem" onClick={() => runAction(action.prompt)}>
+                      <Icon size={15} />
+                      <span>{action.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
         <div className="ai-chat-body" ref={bodyRef}>
@@ -489,12 +576,14 @@ function AiAgentPanel({ open, onClose, toast }: { open: boolean; onClose: () => 
                 {msg.role === "assistant" ? <Icons.Bot size={16} /> : <Icons.User size={16} />}
               </div>
               <div>
-                <div className="ai-msg-bubble">{msg.content}</div>
+                <div className="ai-msg-bubble">
+                  {msg.role === "assistant" ? <AiFormattedMessage content={msg.content} /> : msg.content}
+                </div>
                 {msg.toolCalls?.map((tc, i) => (
                   <div key={i}>
                     <div className={cx("ai-tool-badge", tc.error && "error")} onClick={() => toggleTool(msg.id * 100 + i)}>
                       {tc.error ? <Icons.AlertCircle size={12} /> : <Icons.Zap size={12} />}
-                      {tc.name.replace("execute_itrack_api", "API Call")}: {tc.args?.method} {tc.args?.path}
+                      {tc.name.replace("execute_itrack_api", "API Call")}: {(tc.args ?? tc.arguments)?.method} {(tc.args ?? tc.arguments)?.path}
                     </div>
                     {expandedTools.has(msg.id * 100 + i) && (
                       <div className="ai-tool-detail">{JSON.stringify(tc.result, null, 2)}</div>
@@ -564,7 +653,9 @@ function AppRoutes({
       <Route path="/projects/:projectId/*" element={<ProjectDetail />} />
       <Route path="/backlog" element={<BacklogLive toast={toast} />} />
       <Route path="/board" element={<Board toast={toast} />} />
+      <Route path="/cycles" element={<CyclesLive toast={toast} />} />
       <Route path="/sprints" element={<SprintsLive toast={toast} />} />
+      <Route path="/sla" element={<SlaPage toast={toast} />} />
       <Route
         path="/sprints/new"
         element={<FormPage type="sprint" toast={toast} />}
@@ -1164,6 +1255,15 @@ function TicketTable({ rows }: { rows?: Ticket[] }) {
       })
     : filtered;
 
+  const slaTone = (status?: Ticket["slaStatus"]) =>
+    status === "breached"
+      ? "critical"
+      : status === "due_soon"
+        ? "high"
+        : status === "resolved"
+          ? "green"
+          : "lime";
+
   return (
     <div className="table-wrap">
       <table>
@@ -1172,6 +1272,7 @@ function TicketTable({ rows }: { rows?: Ticket[] }) {
             <th>Ticket</th>
             <th>Status</th>
             <th>Priority</th>
+            <th>SLA</th>
             <th>Assignee</th>
             <th>Points</th>
           </tr>
@@ -1196,6 +1297,11 @@ function TicketTable({ rows }: { rows?: Ticket[] }) {
                 <Badge tone={t.priority}>
                   <i className="dot" />
                   {fmt(t.priority)}
+                </Badge>
+              </td>
+              <td>
+                <Badge tone={slaTone(t.slaStatus)}>
+                  {fmt(t.slaStatus || "healthy")}
                 </Badge>
               </td>
               <td>
@@ -1252,6 +1358,8 @@ function Board({
   const [view, setView] = useState<"board" | "list">("board");
   const [filters, setFilters] = useState(false);
   const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
+  const [draggedTicket, setDraggedTicket] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
 
   // Bulk actions fields
   const [bulkStatus, setBulkStatus] = useState("");
@@ -1291,7 +1399,60 @@ function Board({
           return valA < valB ? -1 : valA > valB ? 1 : 0;
         }
       })
-    : filteredTickets;
+    : [...filteredTickets].sort((a, b) => (a.rank || 0) - (b.rank || 0));
+
+  const dropTicket = async (
+    ticketId: string,
+    status: TicketStatus,
+    beforeId?: string,
+  ) => {
+    const ticket = activeTickets.find((item) => item.id === ticketId);
+    if (!ticket || beforeId === ticketId) return;
+
+    const destination = activeTickets.filter(
+      (item) => item.status === status && item.id !== ticketId,
+    );
+    const insertionIndex = beforeId
+      ? Math.max(0, destination.findIndex((item) => item.id === beforeId))
+      : destination.length;
+    destination.splice(insertionIndex, 0, { ...ticket, status });
+
+    const updates = destination.map((item, index) => ({
+      id: item.id,
+      status,
+      rank: (index + 1) * 1000,
+    }));
+
+    try {
+      await mutate(
+        () =>
+          Promise.all(
+            updates.map((item) =>
+              api(`/tickets/${item.id}/rank`, {
+                method: "PATCH",
+                body: JSON.stringify({
+                  rank: item.rank,
+                  ...(item.id === ticketId ? { status } : {}),
+                }),
+              }),
+            ),
+          ),
+        (prev) => ({
+          ...prev,
+          tickets: prev.tickets.map((item: any) => {
+            const update = updates.find((candidate) => candidate.id === item.id);
+            return update ? { ...item, status: update.status, rank: update.rank } : item;
+          }),
+        }),
+      );
+      toast(`Ticket moved to ${status}`);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Move failed");
+    } finally {
+      setDraggedTicket(null);
+      setDropTarget(null);
+    }
+  };
 
   const move = async (id: string, status: TicketStatus) => {
     try {
@@ -1549,7 +1710,20 @@ function Board({
       ) : (
         <div className="kanban">
           {statuses.map((s) => (
-            <section key={s}>
+            <section
+              key={s}
+              className={dropTarget === `column:${s}` ? "drag-over" : ""}
+              onDragOver={(event) => {
+                event.preventDefault();
+                if (event.target === event.currentTarget || !(event.target as HTMLElement).closest(".ticket-card")) {
+                  setDropTarget(`column:${s}`);
+                }
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                if (draggedTicket) void dropTicket(draggedTicket, s);
+              }}
+            >
               <header>
                 <i className={s.replaceAll(" ", "").toLowerCase()} />
                 <b>{s}</b>
@@ -1560,7 +1734,30 @@ function Board({
               {activeTickets
                 .filter((t) => t.status === s)
                 .map((t) => (
-                  <article className="ticket-card" key={t.id}>
+                  <article
+                    className={`ticket-card${draggedTicket === t.id ? " dragging" : ""}${dropTarget === `ticket:${t.id}` ? " drag-before" : ""}`}
+                    key={t.id}
+                    draggable
+                    onDragStart={(event) => {
+                      setDraggedTicket(t.id);
+                      event.dataTransfer.effectAllowed = "move";
+                      event.dataTransfer.setData("text/plain", t.id);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedTicket(null);
+                      setDropTarget(null);
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      if (draggedTicket !== t.id) setDropTarget(`ticket:${t.id}`);
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      if (draggedTicket) void dropTicket(draggedTicket, s, t.id);
+                    }}
+                  >
                     <div
                       style={{
                         display: "flex",
@@ -1696,6 +1893,9 @@ function SprintDetail() {
 
   // Sprint tickets
   const sprintTickets = tickets.filter((t) => t.sprintId === s._id);
+  const cycle = (dashboard?.cycles || []).find((item: any) =>
+    (item.sprints || []).some((sprint: any) => String(sprint._id || sprint) === String(s._id)),
+  );
 
   const startSprint = async () => {
     try {
@@ -1796,9 +1996,9 @@ function SprintDetail() {
         </article>
         <article className="metric">
           <div>
-            <span>Capacity</span>
-            <strong>{s.capacity}</strong>
-            <small>Story points</small>
+            <span>Cycle</span>
+            <strong>{cycle?.name || "None"}</strong>
+            <small>{cycle ? `${cycle.status} cycle` : "not grouped"}</small>
           </div>
         </article>
       </div>
@@ -2780,8 +2980,8 @@ function Reports() {
         avgVelocity,
         completionRate,
         blockedTickets: blockedCount,
-        cycleTime: report?.cycleTime ?? 4.8,
-        leadTime: report?.leadTime ?? 7.2,
+        cycleTime: report?.cycleTime ?? 0,
+        leadTime: report?.leadTime ?? 0,
       },
     };
     const blob = new Blob([JSON.stringify(dataToDownload, null, 2)], {
@@ -2804,8 +3004,8 @@ function Reports() {
       ["Average Velocity", String(avgVelocity)],
       ["Completion Rate", `${completionRate}%`],
       ["Blocked Tickets", String(blockedCount)],
-      ["Cycle Time (days)", String(report?.cycleTime ?? 4.8)],
-      ["Lead Time (days)", String(report?.leadTime ?? 7.2)],
+      ["Cycle Time (days)", String(report?.cycleTime ?? 0)],
+      ["Lead Time (days)", String(report?.leadTime ?? 0)],
     ];
     const csvContent = [
       headers.join(","),
@@ -2900,7 +3100,7 @@ function Reports() {
         <article className="metric">
           <div>
             <span>Cycle time</span>
-            <strong>{report?.cycleTime ?? 4.8}d</strong>
+            <strong>{report?.cycleTime ?? 0}d</strong>
             <small>average duration</small>
           </div>
         </article>
@@ -2912,6 +3112,18 @@ function Reports() {
           </div>
         </article>
       </div>
+      <section className="card">
+        <CardTitle title="Missing Jira-like features" sub="Prioritized product gaps still outside this prototype" />
+        <div className="missing-feature-grid">
+          {(report?.missingFeatures || []).map((feature: any) => (
+            <article key={feature.name} className="missing-feature">
+              <span><Badge tone={feature.priority}>{fmt(feature.priority)}</Badge><small>{feature.area}</small></span>
+              <b>{feature.name}</b>
+              <p>{fmt(feature.status)}</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
       <div className="two-col">
         <section className="card">
@@ -3762,7 +3974,7 @@ function FormPage({
           }),
         });
       if (type === "invite") {
-        const res = await api<any>("/users/invite", {
+        const res = await api<any>("/invitations", {
           method: "POST",
           body: JSON.stringify({
             name: values.get("name"),
@@ -3826,7 +4038,7 @@ function FormPage({
               <span>Project</span>
               <select name="project" required>
                 {projects.map((project: any) => (
-                  <option key={project._id} value={project.name}>
+                  <option key={project._id} value={project._id}>
                     {project.name}
                   </option>
                 ))}
@@ -3837,7 +4049,7 @@ function FormPage({
               <select name="sprint" required>
                 <option value="">Backlog</option>
                 {sprints.map((sprint: any) => (
-                  <option key={sprint._id} value={sprint.name}>
+                  <option key={sprint._id} value={sprint._id}>
                     {sprint.name}
                   </option>
                 ))}
@@ -3848,7 +4060,7 @@ function FormPage({
               <select name="assignee" required>
                 <option value="">Unassigned</option>
                 {users.map((user: any) => (
-                  <option key={user._id} value={user.name}>
+                  <option key={user._id} value={user._id}>
                     {user.name}
                   </option>
                 ))}
@@ -4854,6 +5066,197 @@ function BacklogLive({
           />
         )}
       </section>
+    </>
+  );
+}
+
+function SlaPage({ toast }: { toast: (s: string) => void }) {
+  const { sla, tickets, organization, refetch, role } = useWorkspace();
+  const [saving, setSaving] = useState(false);
+  const isLeader = ["admin", "manager"].includes(role);
+  const policy = sla?.policy || organization?.settings?.slaPolicy || {
+    critical: { firstResponseHours: 1, resolutionHours: 8 },
+    high: { firstResponseHours: 4, resolutionHours: 24 },
+    medium: { firstResponseHours: 8, resolutionHours: 72 },
+    low: { firstResponseHours: 24, resolutionHours: 120 },
+  };
+  const slaTickets = (sla?.tickets || tickets).map((ticket: any) => ({
+    id: ticket._id || ticket.id,
+    key: ticket.ticketId || ticket.key,
+    title: ticket.title,
+    status: ticket.status,
+    priority: ticket.priority,
+    points: ticket.storyPoints || ticket.points || 0,
+    assignee: ticket.assignee?.name || ticket.assignee || "Unassigned",
+    project: ticket.project?.name || ticket.project || "",
+    labels: ticket.labels || [],
+    blocked: ticket.blocked,
+    slaStatus: ticket.slaStatus,
+    firstResponseDueAt: ticket.firstResponseDueAt,
+    resolutionDueAt: ticket.resolutionDueAt,
+  }));
+  const summary = sla?.summary || {
+    breached: slaTickets.filter((ticket: Ticket) => ticket.slaStatus === "breached").length,
+    dueSoon: slaTickets.filter((ticket: Ticket) => ticket.slaStatus === "due_soon").length,
+    healthy: slaTickets.filter((ticket: Ticket) => !ticket.slaStatus || ticket.slaStatus === "healthy").length,
+    resolved: slaTickets.filter((ticket: Ticket) => ticket.slaStatus === "resolved").length,
+  };
+
+  const savePolicy = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaving(true);
+    const values = new FormData(event.currentTarget);
+    const nextPolicy = Object.fromEntries(
+      ["critical", "high", "medium", "low"].map((priority) => [
+        priority,
+        {
+          firstResponseHours: Number(values.get(`${priority}-firstResponseHours`)),
+          resolutionHours: Number(values.get(`${priority}-resolutionHours`)),
+        },
+      ]),
+    );
+    try {
+      await api("/sla/policy", { method: "PATCH", body: JSON.stringify(nextPolicy) });
+      toast("SLA policy updated");
+      await refetch();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Failed to update SLA policy");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <PageHead title="SLA" desc="Track response and resolution commitments by ticket priority." />
+      <div className="metrics compact">
+        <article className="metric"><div><span>Breached</span><strong>{summary.breached}</strong><small>needs attention</small></div></article>
+        <article className="metric"><div><span>Due soon</span><strong>{summary.dueSoon}</strong><small>inside 4 hours</small></div></article>
+        <article className="metric"><div><span>Healthy</span><strong>{summary.healthy}</strong><small>on target</small></div></article>
+        <article className="metric"><div><span>Resolved</span><strong>{summary.resolved}</strong><small>completed</small></div></article>
+      </div>
+      <div className="two-col">
+        <section className="card">
+          <CardTitle title="SLA policy" sub="Hours by ticket priority" />
+          <form className="sla-policy-grid" onSubmit={savePolicy}>
+            {(["critical", "high", "medium", "low"] as const).map((priority) => (
+              <div className="sla-policy-row" key={priority}>
+                <b>{fmt(priority)}</b>
+                <label className="field">
+                  <span>First response</span>
+                  <input name={`${priority}-firstResponseHours`} type="number" min="0.25" step="0.25" defaultValue={policy[priority]?.firstResponseHours} disabled={!isLeader} />
+                </label>
+                <label className="field">
+                  <span>Resolution</span>
+                  <input name={`${priority}-resolutionHours`} type="number" min="0.25" step="0.25" defaultValue={policy[priority]?.resolutionHours} disabled={!isLeader} />
+                </label>
+              </div>
+            ))}
+            {isLeader && <button className="btn primary" disabled={saving}>{saving ? "Saving..." : "Save policy"}</button>}
+          </form>
+        </section>
+        <section className="card">
+          <CardTitle title="SLA queue" sub="Breached and due-soon tickets appear first" />
+          <TicketTable rows={slaTickets} />
+        </section>
+      </div>
+    </>
+  );
+}
+
+function CyclesLive({ toast }: { toast: (s: string) => void }) {
+  const { dashboard, refetch, role } = useWorkspace();
+  const [creating, setCreating] = useState(false);
+  const cycles = dashboard?.cycles || [];
+  const sprints = dashboard?.sprints || [];
+  const isLeader = ["admin", "manager"].includes(role);
+
+  const createCycle = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    setCreating(true);
+    try {
+      await api("/cycles", {
+        method: "POST",
+        body: JSON.stringify({
+          name: values.get("name"),
+          goal: values.get("goal"),
+          status: values.get("status"),
+          startDate: values.get("startDate"),
+          endDate: values.get("endDate"),
+          sprints: values.getAll("sprints"),
+        }),
+      });
+      form.reset();
+      toast("Cycle created");
+      await refetch();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Failed to create cycle");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const deleteCycle = async (cycleId: string) => {
+    if (!window.confirm("Delete this cycle? Sprints will remain intact.")) return;
+    try {
+      await api(`/cycles/${cycleId}`, { method: "DELETE" });
+      toast("Cycle deleted");
+      await refetch();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Failed to delete cycle");
+    }
+  };
+
+  return (
+    <>
+      <PageHead title="Cycles" desc="Group multiple sprints under a larger planning goal." />
+      <div className="two-col">
+        {isLeader && (
+          <section className="card">
+            <CardTitle title="New cycle" sub="Create a planning container for related sprints" />
+            <form className="form-grid" onSubmit={createCycle}>
+              <label className="field full"><span>Name</span><input name="name" placeholder="Cycle 2026-Q3" required /></label>
+              <label className="field full"><span>Goal</span><textarea name="goal" placeholder="What should this cycle achieve?" /></label>
+              <label className="field"><span>Status</span><select name="status" defaultValue="planned"><option value="planned">Planned</option><option value="active">Active</option><option value="completed">Completed</option></select></label>
+              <label className="field"><span>Start date</span><input name="startDate" type="date" required /></label>
+              <label className="field"><span>End date</span><input name="endDate" type="date" required /></label>
+              <div className="field full">
+                <span>Sprints</span>
+                <div className="check-list">
+                  {sprints.map((sprint: any) => (
+                    <label key={sprint._id}><input type="checkbox" name="sprints" value={sprint._id} /> {sprint.name}</label>
+                  ))}
+                </div>
+              </div>
+              <button className="btn primary" disabled={creating}>{creating ? "Creating..." : "Create cycle"}</button>
+            </form>
+          </section>
+        )}
+        <section className="card">
+          <CardTitle title="Cycle plan" sub={`${cycles.length} cycle${cycles.length === 1 ? "" : "s"} in this workspace`} />
+          <div className="cycle-list">
+            {cycles.length ? cycles.map((cycle: any) => {
+              const planned = (cycle.sprints || []).reduce((sum: number, sprint: any) => sum + (sprint.plannedPoints || 0), 0);
+              const completed = (cycle.sprints || []).reduce((sum: number, sprint: any) => sum + (sprint.completedPoints || 0), 0);
+              const progress = planned ? Math.round((completed / planned) * 100) : 0;
+              return (
+                <article className="cycle-row" key={cycle._id}>
+                  <div>
+                    <span><b>{cycle.name}</b><Badge tone={cycle.status === "active" ? "lime" : cycle.status === "completed" ? "green" : "neutral"}>{cycle.status}</Badge></span>
+                    <p>{cycle.goal || "No cycle goal set"}</p>
+                    <small>{new Date(cycle.startDate).toLocaleDateString()} - {new Date(cycle.endDate).toLocaleDateString()}</small>
+                  </div>
+                  <div><small>Sprints</small><strong>{cycle.sprints?.length || 0}</strong></div>
+                  <div><small>Progress</small><strong>{progress}%</strong><Progress value={progress} /></div>
+                  {isLeader && <button className="icon-btn" onClick={() => deleteCycle(cycle._id)} aria-label={`Delete ${cycle.name}`}><Icons.Trash2 /></button>}
+                </article>
+              );
+            }) : <Empty title="No cycles" body="Create a cycle to group related sprints." />}
+          </div>
+        </section>
+      </div>
     </>
   );
 }

@@ -10,6 +10,7 @@ export interface IOrganization {
     sprintLengthDays: number;
     timezone: string;
     aiEnabled: boolean;
+    slaPolicy: Record<"critical" | "high" | "medium" | "low", { firstResponseHours: number; resolutionHours: number }>;
   };
 }
 
@@ -24,6 +25,24 @@ const organizationSchema = new Schema<IOrganization>(
       sprintLengthDays: { type: Number, default: 14 },
       timezone: { type: String, default: "Asia/Calcutta" },
       aiEnabled: { type: Boolean, default: true },
+      slaPolicy: {
+        critical: {
+          firstResponseHours: { type: Number, default: 1 },
+          resolutionHours: { type: Number, default: 8 },
+        },
+        high: {
+          firstResponseHours: { type: Number, default: 4 },
+          resolutionHours: { type: Number, default: 24 },
+        },
+        medium: {
+          firstResponseHours: { type: Number, default: 8 },
+          resolutionHours: { type: Number, default: 72 },
+        },
+        low: {
+          firstResponseHours: { type: Number, default: 24 },
+          resolutionHours: { type: Number, default: 120 },
+        },
+      },
     },
   },
   { timestamps: true },

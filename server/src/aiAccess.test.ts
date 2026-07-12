@@ -15,12 +15,35 @@ test("AI endpoint discovery only returns endpoints available to the user role", 
   assert.ok(engineerEndpoints.includes("GET /tickets"));
   assert.ok(engineerEndpoints.includes("PATCH /tickets/:id/status"));
   assert.equal(engineerEndpoints.includes("DELETE /tickets/:id"), false);
+  assert.equal(engineerEndpoints.includes("POST /ai/chat"), false);
+  assert.equal(engineerEndpoints.includes("POST /ai/execute"), false);
+});
+
+test("AI endpoint discovery exposes primary app actions for admins", () => {
+  const adminEndpoints = aiEndpointsForRole("admin").map((endpoint) => `${endpoint.method} ${endpoint.path}`);
+  for (const endpoint of [
+    "POST /tickets",
+    "PATCH /tickets/:id/status",
+    "POST /tickets/:id/comments",
+    "POST /projects",
+    "PUT /projects/:id/members",
+    "POST /sprints/:id/start",
+    "POST /cycles",
+    "PATCH /sla/policy",
+    "POST /invitations",
+    "PATCH /settings",
+    "GET /reports",
+    "POST /import/resources",
+  ]) {
+    assert.ok(adminEndpoints.includes(endpoint), `${endpoint} should be AI-callable for admins`);
+  }
 });
 
 test("AI execution requires confirmation for delete and destructive actions", () => {
   assert.equal(isConfirmationRequired("DELETE", "/tickets/example"), true);
   assert.equal(isConfirmationRequired("DELETE", "/organization"), true);
   assert.equal(isConfirmationRequired("POST", "/projects/example/archive"), true);
+  assert.equal(isConfirmationRequired("DELETE", "/cycles/example"), true);
   assert.equal(isConfirmationRequired("POST", "/notifications/read-all"), true);
   assert.equal(isConfirmationRequired("PATCH", "/tickets/example/status"), false);
 });
