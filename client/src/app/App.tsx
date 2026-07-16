@@ -6435,7 +6435,9 @@ function OnboardingFlow({ toast }: { toast: (message: string) => void }) {
   const [error, setError] = useState("");
   const [inviteUrl, setInviteUrl] = useState("");
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); setBusy(true); setError(""); const values = new FormData(event.currentTarget);
+    event.preventDefault();
+    const form = event.currentTarget;
+    setBusy(true); setError(""); const values = new FormData(form);
     try {
       if (step === "workspace") {
         const session = await api<any>("/workspaces", { method: "POST", body: JSON.stringify({ name: values.get("name") }) });
@@ -6445,7 +6447,7 @@ function OnboardingFlow({ toast }: { toast: (message: string) => void }) {
         nav("/onboarding/invite");
       } else {
         const result = await api<any>("/invitations", { method: "POST", body: JSON.stringify({ name: values.get("name"), email: values.get("email"), role: values.get("role"), capacity: Number(values.get("capacity")) }) });
-        setInviteUrl(result.inviteUrl); toast("Invitation created"); event.currentTarget.reset();
+        setInviteUrl(result.inviteUrl); toast("Invitation created"); form.reset();
       }
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Unable to continue"); } finally { setBusy(false); }
   };
@@ -6453,7 +6455,38 @@ function OnboardingFlow({ toast }: { toast: (message: string) => void }) {
   const finish = async () => { if (!organization) return; await api(`/workspaces/${organization.id || organization._id}/onboarding/complete`, { method: "POST" }); window.location.assign("/dashboard"); };
   const headings: Record<string, [string, string]> = { workspace: ["Create or join a workspace", "A workspace keeps each team’s projects, people, and permissions separate."], project: ["Create your first project", "Give your team a clear place to start planning work."], invite: ["Invite your team", "Create invitation links now, or skip and invite teammates later."] };
   const heading = headings[step] || headings.workspace;
-  return <div className="onboarding-shell"><div className="onboarding-progress"><span className={step === "workspace" ? "active" : "done"}>1 Account</span><span className={step === "workspace" ? "active" : step === "project" ? "active" : "done"}>2 Workspace</span><span className={step === "project" ? "active" : step === "invite" ? "done" : ""}>3 Project</span><span className={step === "invite" ? "active" : ""}>4 Team</span></div><section className="card onboarding-card"><Badge tone="blue">GET STARTED</Badge><PageHead title={heading[0]} desc={heading[1]} />{step === "workspace" && pendingInvitations.length > 0 && <div className="pending-onboarding"><h3>Pending invitations</h3>{pendingInvitations.map((invitation: any) => <article key={invitation.id}><div><b>{invitation.organization?.name}</b><small>Join as {fmt(invitation.role)}</small></div><button className="btn" onClick={() => acceptInvitation(invitation.id)}>Review and join</button></article>)}<div className="or-divider">or create a new workspace</div></div>}<form onSubmit={submit}>{step === "workspace" && <label className="field"><span>Workspace name</span><input name="name" placeholder="Acme Product" minLength={2} autoFocus required /></label>}{step === "project" && <div className="form-grid"><label className="field full"><span>Project name</span><input name="name" placeholder="Product launch" autoFocus required /></label><label className="field"><span>Project key</span><input name="key" placeholder="PL" minLength={2} maxLength={12} required /></label><label className="field full"><span>Description</span><textarea name="description" placeholder="What will this project deliver?" minLength={5} required /></label></div>}{step === "invite" && <div className="form-grid"><label className="field full"><span>Full name</span><input name="name" required /></label><label className="field full"><span>Email address</span><input name="email" type="email" required /></label><label className="field"><span>Role</span><select name="role" defaultValue="engineer"><option value="engineer">Engineer</option><option value="designer">Designer</option><option value="manager">Manager</option></select></label><label className="field"><span>Weekly capacity</span><input name="capacity" type="number" min="0" defaultValue="32" /></label></div>}{error && <div className="auth-message">{error}</div>}{inviteUrl && <div className="invite-link"><span>Invitation link</span><input readOnly value={inviteUrl} /><button type="button" className="btn" onClick={() => navigator.clipboard.writeText(inviteUrl)}>Copy</button></div>}<div className="form-actions">{step === "invite" && <button type="button" className="btn" onClick={finish}>Skip for now</button>}<button className="btn primary" disabled={busy}>{busy ? "Please wait…" : step === "workspace" ? "Create workspace" : step === "project" ? "Create project" : "Create invitation"}</button>{step === "invite" && inviteUrl && <button type="button" className="btn primary" onClick={finish}>Finish onboarding</button>}</div></form></section></div>;
+  const currentStep = step === "project" ? 3 : step === "invite" ? 4 : 2;
+  const steps = ["Account", "Workspace", "Project", "Team"];
+  const onboardingDetails = step === "project"
+    ? { icon: Icons.FolderKanban, title: "Give work a home", text: "Projects keep goals, tickets, and delivery updates together.", items: ["Plan work in one place", "Track progress clearly", "Keep the team focused"] }
+    : step === "invite"
+      ? { icon: Icons.UsersRound, title: "Better with your team", text: "Bring the people who will plan, build, and deliver with you.", items: ["Assign clear roles", "Plan around capacity", "Share progress easily"] }
+      : { icon: Icons.Building2, title: "Your team’s shared space", text: "Set up one secure home for everything your team plans and delivers.", items: ["Organize projects and tickets", "Manage people and permissions", "Keep delivery updates together"] };
+  const DetailIcon = onboardingDetails.icon;
+  return <div className="onboarding-shell">
+    <header className="onboarding-header">
+      <a className="brand" href="/" aria-label="I-TRACK home"><span className="brand-mark"><img src="/logo-mark.png" alt="" /></span><span>I-TRACK</span></a>
+      <span className="onboarding-save"><Icons.CloudCheck /> Your progress is saved</span>
+    </header>
+    <nav className="onboarding-progress" aria-label="Onboarding progress">
+      {steps.map((label, index) => {
+        const number = index + 1;
+        const state = number < currentStep ? "done" : number === currentStep ? "active" : "";
+        return <React.Fragment key={label}><span className={state}><i>{number < currentStep ? <Icons.Check /> : number}</i><b>{label}</b></span>{index < steps.length - 1 && <em className={number < currentStep ? "done" : ""} />}</React.Fragment>;
+      })}
+    </nav>
+    <main className="onboarding-layout">
+      <aside className="onboarding-context">
+        <div className="onboarding-context-icon"><DetailIcon /></div>
+        <Badge tone="lime">SET UP IN MINUTES</Badge>
+        <h2>{onboardingDetails.title}</h2>
+        <p>{onboardingDetails.text}</p>
+        <ul>{onboardingDetails.items.map((item) => <li key={item}><Icons.CheckCircle2 />{item}</li>)}</ul>
+        <div className="onboarding-tip"><Icons.Sparkles /><span><b>You can change this later</b><small>Workspace settings stay fully editable.</small></span></div>
+      </aside>
+      <section className="card onboarding-card"><Badge tone="blue">GET STARTED</Badge><PageHead title={heading[0]} desc={heading[1]} />{step === "workspace" && pendingInvitations.length > 0 && <div className="pending-onboarding"><h3>Pending invitations</h3>{pendingInvitations.map((invitation: any) => <article key={invitation.id}><div><b>{invitation.organization?.name}</b><small>Join as {fmt(invitation.role)}</small></div><button className="btn" onClick={() => acceptInvitation(invitation.id)}>Review and join</button></article>)}<div className="or-divider">or create a new workspace</div></div>}<form onSubmit={submit}>{step === "workspace" && <label className="field"><span>Workspace name</span><input name="name" placeholder="Acme Product" minLength={2} autoFocus required /><small>This is usually your company or team name.</small></label>}{step === "project" && <div className="form-grid"><label className="field full"><span>Project name</span><input name="name" placeholder="Product launch" autoFocus required /></label><label className="field"><span>Project key</span><input name="key" placeholder="PL" minLength={2} maxLength={12} required /></label><label className="field full"><span>Description</span><textarea name="description" placeholder="What will this project deliver?" minLength={5} required /></label></div>}{step === "invite" && <div className="form-grid"><label className="field full"><span>Full name</span><input name="name" required /></label><label className="field full"><span>Email address</span><input name="email" type="email" required /></label><label className="field"><span>Role</span><select name="role" defaultValue="engineer"><option value="engineer">Engineer</option><option value="designer">Designer</option><option value="manager">Manager</option></select></label><label className="field"><span>Weekly capacity</span><input name="capacity" type="number" min="0" defaultValue="32" /></label></div>}{error && <div className="auth-message">{error}</div>}{inviteUrl && <div className="invite-link"><span>Invitation link</span><input readOnly value={inviteUrl} /><button type="button" className="btn" onClick={() => navigator.clipboard.writeText(inviteUrl)}>Copy</button></div>}<div className="form-actions">{step === "invite" && <button type="button" className="btn" onClick={finish}>Skip for now</button>}<button className="btn primary" disabled={busy}>{busy ? "Please wait…" : step === "workspace" ? "Create workspace" : step === "project" ? "Create project" : "Create invitation"}</button>{step === "invite" && inviteUrl && <button type="button" className="btn primary" onClick={finish}>Finish onboarding</button>}</div></form></section>
+    </main>
+  </div>;
 }
 
 function InvitationAcceptPage() {

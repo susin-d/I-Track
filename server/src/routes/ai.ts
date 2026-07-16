@@ -2,6 +2,7 @@ import { Router, type Request } from "express";
 import OpenAI from "openai";
 import { z } from "zod";
 import { aiEndpointsForRole, canRoleAccessAiEndpoint, isConfirmationRequired, normalizeAiPath } from "../aiAccess.js";
+import { mutationContractFor } from "../aiContracts.js";
 import { env } from "../config/env.js";
 import { requireAuth, requireRole, requireWorkspace, type AuthRequest } from "../middleware/auth.js";
 import { enforceApiAccess } from "../middleware/access.js";
@@ -11,7 +12,7 @@ import { Sprint } from "../models/Sprint.js";
 import { Ticket } from "../models/Ticket.js";
 import { User } from "../models/User.js";
 import { OrganizationMembership } from "../models/WorkspaceAccess.js";
-import { generatedTicketSchema } from "../schemas/ai.js";
+import { generatedTicketSchema, normalizeGeneratedTicketPlan } from "../schemas/ai.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -135,20 +136,39 @@ router.post("/generate-tickets", async (req, res) => {
   }
 
   try {
-    const completion = await getClient().chat.completions.create({
+    const client = getClient();
+    const schemaInstruction = [
+      "Return only valid JSON matching this exact shape:",
+      "{ epic: { title: string, description: string }, stories: [{ title: string, description: string, acceptanceCriteria: string[], priority: low|medium|high|critical, storyPoints: integer 1..13, labels: string[], tasks: [{ title: string, description: string, storyPoints: integer 1..13, dependencies: string[] }] }] }.",
+      "All array fields must always be JSON arrays, even when they contain one or zero items. Priority must be lowercase. Do not create records.",
+    ].join("\n");
+    const completion = await client.chat.completions.create({
       model,
       temperature: 0.2,
       messages: [
         {
           role: "system",
-          content: "Return only valid JSON matching { epic:{title,description}, stories:[{title,description,acceptanceCriteria,priority,storyPoints,labels,tasks:[{title,description,storyPoints,dependencies}]}] }. Do not create records.",
+          content: schemaInstruction,
         },
         { role: "user", content: parsed.data.prompt },
       ],
     });
-    const raw = completion.choices[0]?.message?.content;
-    const json = raw ? parseJsonPayload(raw) : null;
-    const validation = generatedTicketSchema.safeParse(json);
+    let raw = completion.choices[0]?.message?.content;
+    let json = normalizeGeneratedTicketPlan(raw ? parseJsonPayload(raw) : null);
+    let validation = generatedTicketSchema.safeParse(json);
+    if (!validation.success && raw) {
+      const repair = await client.chat.completions.create({
+        model,
+        temperature: 0,
+        messages: [
+          { role: "system", content: `${schemaInstruction}\nRepair the supplied JSON so it satisfies the schema. Return only the repaired JSON.` },
+          { role: "user", content: JSON.stringify({ json, issues: validation.error.issues }) },
+        ],
+      });
+      raw = repair.choices[0]?.message?.content;
+      json = normalizeGeneratedTicketPlan(raw ? parseJsonPayload(raw) : null);
+      validation = generatedTicketSchema.safeParse(json);
+    }
     if (!validation.success) {
       return res.status(422).json({ message: "AI output did not match the ticket schema", issues: validation.error.issues });
     }
@@ -293,6 +313,7 @@ router.post("/chat", async (req, res) => {
     "- Never expose credentials, tokens, or internal secrets.",
     "- Report backend errors accurately — include status codes and messages.",
     "- Never retry a failed create, update, or delete request with the same arguments. Explain the failure or ask for corrected information.",
+    "- Before every POST, PUT, PATCH, or DELETE operation, call get_itrack_api_contract with the concrete method and path, follow its body contract and prerequisites exactly, then call execute_itrack_api.",
     "- When you need to call an I-TRACK API, use the execute_itrack_api tool.",
   ].join("\n");
 
@@ -306,8 +327,23 @@ router.post("/chat", async (req, res) => {
     {
       type: "function",
       function: {
+        name: "get_itrack_api_contract",
+        description: "Get the exact request-body contract and prerequisites for an I-TRACK write operation. Required before POST, PUT, PATCH, or DELETE.",
+        parameters: {
+          type: "object",
+          required: ["method", "path"],
+          properties: {
+            method: { type: "string", enum: ["POST", "PUT", "PATCH", "DELETE"] },
+            path: { type: "string", description: "Concrete API path, with real ids when known." },
+          },
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
         name: "execute_itrack_api",
-        description: "Execute an allowed I-TRACK backend operation as the signed-in user.",
+        description: "Execute an allowed I-TRACK backend operation as the signed-in user. Before any write operation, inspect its contract with get_itrack_api_contract.",
         parameters: {
           type: "object",
           required: ["method", "path"],
@@ -325,7 +361,8 @@ router.post("/chat", async (req, res) => {
     const client = getClient();
     const model = env.openaiModel || "grok-3-mini";
     const allToolCalls: { name: string; arguments: unknown; result: unknown; error?: boolean }[] = [];
-    const MAX_ITERATIONS = 5;
+    const inspectedContracts = new Set<string>();
+    const MAX_ITERATIONS = 7;
     const fallbackReply = () => allToolCalls.some((call) => call.error)
       ? "One or more requests failed. Please review the API error and try again with corrected information."
       : allToolCalls.length
@@ -356,6 +393,28 @@ router.post("/chat", async (req, res) => {
           continue;
         }
 
+        if (toolCall.function.name === "get_itrack_api_contract") {
+          let contractArgs: { method: string; path: string };
+          try {
+            contractArgs = JSON.parse(toolCall.function.arguments);
+          } catch {
+            const result = { error: true, message: "Invalid contract lookup arguments" };
+            messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify(result) });
+            allToolCalls.push({ name: toolCall.function.name, arguments: toolCall.function.arguments, result, error: true });
+            continue;
+          }
+          sendEvent({ type: "tool_start", id: toolCall.id, name: toolCall.function.name, arguments: contractArgs });
+          const contract = mutationContractFor(contractArgs.method, contractArgs.path);
+          const result = contract
+            ? { endpoint: contract.endpoint, body: contract.body, ...(contract.prerequisites ? { prerequisites: contract.prerequisites } : {}) }
+            : { error: true, message: "No write contract exists for this method and path" };
+          if (contract) inspectedContracts.add(contract.endpoint);
+          allToolCalls.push({ name: toolCall.function.name, arguments: contractArgs, result, ...(!contract ? { error: true } : {}) });
+          sendEvent({ type: "tool_result", id: toolCall.id, ok: Boolean(contract), status: contract ? 200 : 404 });
+          messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify(result) });
+          continue;
+        }
+
         if (toolCall.function.name !== "execute_itrack_api") {
           messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify({ error: "Unknown tool" }) });
           continue;
@@ -373,6 +432,21 @@ router.post("/chat", async (req, res) => {
 
         const { method, path, body } = args;
         const actionKey = `${method} ${path}`;
+
+        if (method !== "GET") {
+          const contract = mutationContractFor(method, path);
+          if (!contract || !inspectedContracts.has(contract.endpoint)) {
+            const result = {
+              error: true,
+              message: contract
+                ? `Inspect ${contract.endpoint} with get_itrack_api_contract before executing it.`
+                : "This write operation has no registered AI request contract.",
+            };
+            allToolCalls.push({ name: toolCall.function.name, arguments: args, result, error: true });
+            messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify(result) });
+            continue;
+          }
+        }
 
         if (isConfirmationRequired(method, path) && parsed.data.confirmed?.action !== actionKey) {
           return finish({
