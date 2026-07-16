@@ -571,6 +571,12 @@ type AiToolActivity = {
   status: "running" | "complete" | "error";
 };
 
+// Workspace identifiers are internal implementation details and should never
+// be rendered in the conversational UI, even if a model echoes an API result.
+function redactAiInternalIds(value: string) {
+  return value.replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi, "[hidden]");
+}
+
 type AiAgentContextValue = {
   messages: AiChatMessage[];
   input: string;
@@ -710,9 +716,11 @@ function AiAgentProvider({ children, toast }: { children: React.ReactNode; toast
       const assistantMsg: AiChatMessage = {
         id: Date.now() + 1,
         role: "assistant",
-        content: res.reply || "I couldn't process that request.",
+        content: redactAiInternalIds(res.reply || "I couldn't process that request."),
         requiresConfirmation: res.requiresConfirmation,
-        pendingAction: res.pendingAction,
+        pendingAction: res.pendingAction
+          ? { ...res.pendingAction, description: redactAiInternalIds(res.pendingAction.description) }
+          : undefined,
       };
       setMessages((m) => [...m, assistantMsg]);
     } catch (e) {
@@ -720,7 +728,7 @@ function AiAgentProvider({ children, toast }: { children: React.ReactNode; toast
       setMessages((m) => [...m, {
         id: Date.now() + 1,
         role: "assistant",
-        content: e instanceof Error ? `Sorry, something went wrong: ${e.message}` : "An unexpected error occurred.",
+        content: e instanceof Error ? redactAiInternalIds(`Sorry, something went wrong: ${e.message}`) : "An unexpected error occurred.",
       }]);
     } finally {
       setLoading(false);

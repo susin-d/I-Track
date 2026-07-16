@@ -19,7 +19,7 @@ const contracts: Record<string, Omit<AiMutationContract, "endpoint">> = {
   "PATCH /auth/preferences": { body: "{ notificationPreferences: { ticketAssignments: boolean, mentionsAndComments: boolean, sprintRiskAlerts: boolean, weeklySummary: boolean } }" },
   "POST /auth/accept-invite": { body: "Existing account: { invitationId: string }. New account: { token: string (min 20), name: string (min 2), password: string (min 8) }." },
   "POST /workspaces": { body: "{ name: string (min 2) }" },
-  "POST /workspaces/:id/switch": { body: "{ refreshToken?: string }", prerequisites: "Use a workspace membership id returned by GET /workspaces." },
+  "POST /workspaces/:id/switch": { body: "{ refreshToken?: string }", prerequisites: "Use the organization/workspace id from a membership returned by GET /workspaces; do not use the membership record id." },
   "PATCH /users/:id": { body: "Any subset of { name: string (min 2), role: admin|manager|engineer|designer, skills: string[], availability: number 0..1, capacity: number >= 0, avatarColor: string }", prerequisites: "Use a user id returned by GET /users." },
   "POST /invitations": { body: "{ name: string (min 2), email: valid email, role?: admin|manager|engineer|designer (default engineer), capacity?: number >= 0 (default 32) }" },
   "POST /projects": { body: "{ key: string (2..12), name: string (min 2), description: string (min 5), status?: planning|active|paused|done, progress?: number 0..100, riskLevel?: low|medium|high|critical, activeSprint?: string, members?: string[] }" },

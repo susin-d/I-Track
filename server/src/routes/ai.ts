@@ -307,6 +307,7 @@ router.post("/chat", async (req, res) => {
     "- Keep paragraphs concise and place a blank line between headings, paragraphs, lists, and tables.",
     "- Do not emit raw HTML, except `<br>` when a table cell needs multiple lines. Never wrap the entire response in a code fence.",
     "- Summarize tool results instead of dumping raw payloads unless the user asks for raw data. Clearly distinguish zero values from missing or unavailable data.",
+    "- Never show workspace/organization IDs, membership IDs, tokens, or other internal UUIDs in your reply. Refer to workspaces by their name; internal IDs may be used only inside tool calls.",
     "",
     "Rules:",
     "- For destructive or irreversible actions (DELETE, archive, deactivate, etc.), describe what will happen and ask for explicit confirmation before proceeding.",
