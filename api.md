@@ -1,6 +1,8 @@
 # I-TRACK API Reference
 
-Base URL: `http://localhost:4000/api/v1`
+Base URL: `http://localhost:4000/api/v1` (canonical)
+
+The server also exposes the same application routes under `http://localhost:4000/api` for compatibility. Use `/api/v1` for new clients.
 
 Swagger UI: `http://localhost:4000/api/docs`
 
@@ -94,6 +96,12 @@ Without confirmation, destructive actions return `409`:
 
 Access tokens are scoped to one active workspace. Switching workspaces returns replacement access and refresh tokens after validating the membership.
 
+## Current User
+
+| Method | Endpoint | Access | Confirmation |
+| --- | --- | --- | --- |
+| `GET` | `/me` | all | No |
+
 ## Users
 
 | Method | Endpoint | Access | Confirmation |
@@ -152,6 +160,7 @@ Access tokens are scoped to one active workspace. Switching workspaces returns r
 | `POST` | `/tickets/:id/assign` | all | No |
 | `PATCH` | `/tickets/:id/status` | all | No |
 | `PATCH` | `/tickets/:id/rank` | all | No |
+| `POST` | `/tickets/:id/links` | all | No |
 | `POST` | `/tickets/:id/archive` | leaders | Requires confirmation |
 | `POST` | `/tickets/:id/restore` | leaders | No |
 | `POST` | `/tickets/:id/clone` | leaders | No |
@@ -184,8 +193,9 @@ Access tokens are scoped to one active workspace. Switching workspaces returns r
 | --- | --- | --- | --- |
 | `GET` | `/notifications` | all | No |
 | `PATCH` | `/notifications/:id/read` | all | No |
-| `POST` | `/notifications/read-all` | all | Requires confirmation |
+| `POST` | `/notifications/read-all` | all | No |
 | `GET` | `/audit-logs` | admin | No |
+| `GET` | `/audit-logs/export` | admin | No |
 | `GET` | `/integrations/:kind` | admin | No |
 | `POST` | `/integrations/:kind` | admin | No |
 | `DELETE` | `/integrations/:kind/:id` | admin | Requires confirmation |
@@ -201,6 +211,7 @@ Access tokens are scoped to one active workspace. Switching workspaces returns r
 | `GET` | `/reports` | all | No |
 | `GET` | `/reports/cycle-time` | all | No |
 | `GET` | `/dashboard` | all | No |
+| `GET` | `/my-work` | all | No |
 
 ## Intelligence
 
@@ -214,6 +225,41 @@ Access tokens are scoped to one active workspace. Switching workspaces returns r
 | `POST` | `/ai/chat` | all | No |
 | `POST` | `/ai/generate-tickets` | all | No |
 | `POST` | `/ai/confirm-ticket-plan` | leaders | No |
+
+### Ticket list filters
+
+`GET /tickets` accepts `page`, `limit` (maximum `100`), `search`, and `sort`, plus the optional filters `status`, `priority`, `project`, `sprint`, `assignee`, and `label`. Search matches ticket titles, ticket ids, and labels. Responses include `{ tickets, meta: { page, limit, total, pages } }`.
+
+### AI ticket planning
+
+Generate a plan without writing tickets:
+
+```http
+POST /ai/generate-tickets
+Content-Type: application/json
+```
+
+```json
+{
+  "prompt": "Create a detailed sprint plan for a password reset flow with validation, email delivery, and audit logging.",
+  "model": "provider-model-id"
+}
+```
+
+The response is `{ "plan": { "epic": ..., "stories": [...] } }`. The plan contains stories and tasks with acceptance criteria, lowercase priorities, story points, labels, and dependencies. It is not persisted until confirmed.
+
+Persist an unchanged generated plan as admin or manager:
+
+```json
+{
+  "plan": { "epic": { "title": "...", "description": "..." }, "stories": [] },
+  "projectId": "project-id",
+  "sprintId": "sprint-id",
+  "assigneeId": "user-id"
+}
+```
+
+`GET /ai/models` returns provider model ids. It returns `503` when the provider cannot be inspected. AI endpoints require `OPENAI_API_KEY`; `OPENAI_BASE_URL` and `OPENAI_MODEL` configure the OpenAI-compatible provider.
 
 ## Common Responses
 

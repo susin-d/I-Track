@@ -9,8 +9,8 @@ export type DatabaseConnection = {
 
 export function configuredDatabaseConnections(environment: NodeJS.ProcessEnv = process.env): DatabaseConnection[] {
   const candidates: DatabaseConnection[] = [
-    { source: "DATABASE_URL", connectionString: environment.DATABASE_URL ?? "" },
     { source: "SUPABASE_DATABASE_URL", connectionString: environment.SUPABASE_DATABASE_URL ?? "" },
+    { source: "DATABASE_URL", connectionString: environment.DATABASE_URL ?? "" },
   ];
 
   const seen = new Set<string>();
