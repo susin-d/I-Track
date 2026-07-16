@@ -31,6 +31,7 @@ const serverData: any = {
   dashboard: null,
   notifications: [],
   resources: {},
+  labelOptions: [],
   integrations: [],
   auditLogs: [],
   sessions: [],
@@ -48,6 +49,7 @@ const WorkspaceContext = React.createContext<{
   auditLogs: any[];
   integrations: any[];
   resources: Record<string, any[]>;
+  labelOptions: string[];
   projects: any[];
   tickets: any[];
   people: any[];
@@ -95,6 +97,7 @@ export function ApiGate({
     auditLogs: [],
     integrations: [],
     resources: {},
+    labelOptions: [],
     projects: [],
     tickets: [],
     people: [],
@@ -123,6 +126,7 @@ export function ApiGate({
       const mePromise = api<any>("/auth/me");
       const dashboardPromise = api<any>("/dashboard");
       const notificationsPromise = api<any>("/notifications").catch(() => ({ notifications: [] }));
+      const labelResourcesPromise = api<any>("/resources/label").catch(() => ({ resources: [] }));
 
       const reportsPromise = isReports
         ? api<any>("/reports").catch(() => null)
@@ -152,6 +156,7 @@ export function ApiGate({
         me,
         dashboard,
         notificationsData,
+        labelResourcesData,
         reportsData,
         slaData,
         sessionsData,
@@ -162,6 +167,7 @@ export function ApiGate({
         mePromise,
         dashboardPromise,
         notificationsPromise,
+        labelResourcesPromise,
         reportsPromise,
         slaPromise,
         sessionsPromise,
@@ -170,7 +176,10 @@ export function ApiGate({
         webhooksPromise,
       ]);
 
-      let resourcesObj = serverData.resources || {};
+      let resourcesObj = {
+        ...(serverData.resources || {}),
+        label: labelResourcesData.resources || serverData.resources?.label || [],
+      };
       if (isResources) {
         const resourcePairs = await Promise.all(
           resourceKinds.map(async (kind) => [
@@ -184,6 +193,21 @@ export function ApiGate({
         );
         resourcesObj = Object.fromEntries(resourcePairs);
       }
+
+      const labelOptions = Array.from(
+        new Set<string>(
+          [
+            ...(resourcesObj.label || []).map((resource: any) =>
+              String(resource.name || resource.key || "").trim(),
+            ),
+            ...(dashboard.tickets || []).flatMap((ticket: any) =>
+              Array.isArray(ticket.labels) ? ticket.labels : [],
+            ),
+          ]
+            .map((label) => String(label).trim())
+            .filter(Boolean),
+        ),
+      ).sort((a, b) => a.localeCompare(b));
 
       const parsedPeople = (dashboard.users || []).map((u: any) => ({
         name: u.name,
@@ -260,6 +284,7 @@ export function ApiGate({
             ]
           : serverData.integrations || [],
         resources: resourcesObj,
+        labelOptions,
         projects: parsedProjects,
         tickets: parsedTickets,
         people: parsedPeople,
@@ -290,6 +315,7 @@ export function ApiGate({
             ]
           : serverData.integrations || [],
         resources: resourcesObj,
+        labelOptions,
       });
 
       setLoading(false);
@@ -342,7 +368,8 @@ export function ApiGate({
           sessions: next.sessions,
           auditLogs: next.auditLogs,
           integrations: next.integrations,
-          resources: next.resources,
+        resources: next.resources,
+        labelOptions: next.labelOptions,
         });
         return next;
       });
@@ -385,7 +412,8 @@ export function ApiGate({
         sessions: next.sessions,
         auditLogs: next.auditLogs,
         integrations: next.integrations,
-        resources: next.resources,
+          resources: next.resources,
+          labelOptions: next.labelOptions,
       });
       return next;
     });

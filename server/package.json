@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "seed": "tsx src/seed.ts",
+    "migrate:mongodb:postgres": "tsx scripts/migrate-mongodb-to-postgres.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test src/**/*.test.ts"
   },
@@ -23,9 +24,11 @@
     "express-rate-limit": "^8.5.2",
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
+    "mongodb": "^7.5.0",
     "mongoose": "^9.7.4",
     "morgan": "^1.11.0",
     "openai": "^6.46.0",
+    "pg": "^8.22.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -35,6 +38,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
     "@types/node": "^26.1.1",
+    "@types/pg": "^8.20.0",
     "tsx": "^4.23.0",
     "typescript": "^7.0.2"
   }

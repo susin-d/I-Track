@@ -40,8 +40,12 @@ router.get("/users/:id", async (req: AuthRequest, res) => {
   const user = await User.findOne({ _id: req.params.id, organization: oid(req) }).select("-passwordHash");
   return user ? res.json({ user }) : res.status(404).json({ message: "User not found" });
 });
-router.patch("/users/:id", requireRole(["admin"]), async (req: AuthRequest, res) => {
+router.patch("/users/:id", async (req: AuthRequest, res) => {
   const body = parseOr400(userPatch, req.body, res); if (!body) return;
+  const isAdmin = req.user!.role === "admin";
+  const isSelf = req.params.id === uid(req);
+  if (!isAdmin && !isSelf) return res.status(403).json({ message: "You do not have permission to update this user" });
+  if (!isAdmin && body.role !== undefined) return res.status(403).json({ message: "Only admins can change user roles" });
   const user = await User.findOneAndUpdate({ _id: req.params.id, organization: oid(req) }, body, { new: true }).select("-passwordHash");
   if (!user) return res.status(404).json({ message: "User not found" }); await audit(req, "user.updated", "user", user._id); return res.json({ user });
 });

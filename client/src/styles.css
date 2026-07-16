@@ -599,6 +599,18 @@ main:focus {
   width: 17px;
   color: var(--muted);
 }
+.filterbar .filter-select {
+  flex: 0 1 190px;
+  max-width: 220px;
+}
+.filterbar .filter-select select {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  width: 100%;
+}
 .filterbar input {
   border: 0;
   outline: 0;
@@ -1132,6 +1144,65 @@ td:first-child small {
   font-size: 9px;
   text-transform: none;
 }
+.label-picker {
+  display: grid;
+  gap: 7px;
+}
+.label-picker-title {
+  font-size: 11px;
+  font-weight: 650;
+}
+.label-picker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.label-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 4px 7px 4px 9px;
+  background: #a47bef1a;
+  color: var(--purple-strong);
+  font-size: 10px;
+  font-weight: 700;
+}
+.label-chip-remove {
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+.label-picker-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  padding: 9px 10px;
+  outline: none;
+  font-size: 11px;
+}
+.label-picker-input:focus {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px #a47bef22;
+}
+.label-picker-empty,
+.label-picker-hint {
+  color: var(--muted);
+  font-size: 11px;
+}
+.generated-ticket .label-picker {
+  grid-column: 1 / -1;
+}
+.detail-labels {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
 .ticket-foot {
   display: flex;
   align-items: center;
@@ -1196,6 +1267,34 @@ td:first-child small {
 .sprint-group-head span {
   font-size: 11px;
   color: var(--muted);
+}
+.empty {
+  padding: 18px 0 0;
+}
+.empty > span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: var(--text);
+}
+.empty > span svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 2;
+}
+.empty h3 {
+  margin: 7px 0 11px;
+  font-size: 16px;
+  letter-spacing: -0.02em;
+}
+.empty p {
+  margin-bottom: 20px;
+  font-size: 15px;
+  color: var(--text);
+}
+.empty .btn {
+  margin-bottom: 0;
 }
 .sprint-list {
   display: grid;

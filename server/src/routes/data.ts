@@ -21,6 +21,7 @@ router.use(enforceApiAccess);
 const orgId = (req: AuthRequest) => req.user!.organizationId;
 const userId = (req: AuthRequest) => req.user!.userId;
 const orgFilter = (req: AuthRequest) => ({ organization: orgId(req) });
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 async function nextTicketId(req: AuthRequest, projectId: string) {
   const project = await Project.findOne({ _id: projectId, organization: orgId(req) });
@@ -188,10 +189,31 @@ router.route("/sprints/:id")
 
 router.route("/tickets")
   .get(async (req: AuthRequest, res) => {
-    const querySchema = listQuerySchema.extend({ status: z.enum(ticketStatuses).optional(), priority: z.enum(priorityLevels).optional(), project: z.string().optional(), sprint: z.string().optional(), assignee: z.string().optional() });
+    const querySchema = listQuerySchema.extend({ status: z.enum(ticketStatuses).optional(), priority: z.enum(priorityLevels).optional(), project: z.string().optional(), sprint: z.string().optional(), assignee: z.string().optional(), label: z.string().optional() });
     const query = parseOr400(querySchema, req.query, res);
     if (!query) return;
-    const filter = { ...orgFilter(req), ...(query.status && { status: query.status }), ...(query.priority && { priority: query.priority }), ...(query.project && { project: query.project }), ...(query.sprint && { sprint: query.sprint }), ...(query.assignee && { assignee: query.assignee }), ...(query.search ? { $or: [{ title: { $regex: query.search, $options: "i" } }, { ticketId: { $regex: query.search, $options: "i" } }] } : {}) };
+    const searchPattern = query.search
+      ? new RegExp(escapeRegExp(query.search), "i")
+      : undefined;
+    const labelPattern = query.label
+      ? new RegExp(`^${escapeRegExp(query.label)}$`, "i")
+      : undefined;
+    const filter = {
+      ...orgFilter(req),
+      ...(query.status && { status: query.status }),
+      ...(query.priority && { priority: query.priority }),
+      ...(query.project && { project: query.project }),
+      ...(query.sprint && { sprint: query.sprint }),
+      ...(query.assignee && { assignee: query.assignee }),
+      ...(labelPattern && { labels: labelPattern }),
+      ...(searchPattern && {
+        $or: [
+          { title: searchPattern },
+          { ticketId: searchPattern },
+          { labels: searchPattern },
+        ],
+      }),
+    };
     const [tickets, total] = await Promise.all([Ticket.find(filter).sort(query.sort).skip((query.page - 1) * query.limit).limit(query.limit).populate(ticketPopulation), Ticket.countDocuments(filter)]);
     return res.json({ tickets, meta: pageMeta(query.page, query.limit, total) });
   })

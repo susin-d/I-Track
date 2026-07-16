@@ -36,6 +36,8 @@ import {
   CardTitle,
   Empty,
   FilterBar,
+  LabelChips,
+  LabelPicker,
   PageHead,
   Progress,
 } from "./components/ui";
@@ -351,13 +353,15 @@ function Shell({
             <span>Search anything</span>
             <kbd>⌘ K</kbd>
           </button>
-          <button
-            className="btn primary"
-            onClick={() => navigate("/tickets/new")}
-          >
-            <Icons.Plus size={17} />
-            New ticket
-          </button>
+          {(effectiveRole === "admin" || effectiveRole === "manager") && (
+            <button
+              className="btn primary"
+              onClick={() => navigate("/tickets/new")}
+            >
+              <Icons.Plus size={17} />
+              New ticket
+            </button>
+          )}
           <button
             className="ai-agent-toggle"
             onClick={() => {
@@ -428,14 +432,16 @@ function Shell({
           navigate={navigate}
         />
       )}
-      <button
-        className="fab"
-        onClick={() => navigate("/tickets/new")}
-        aria-label="Create ticket"
-        title="Create ticket"
-      >
-        <Icons.Plus />
-      </button>
+      {(effectiveRole === "admin" || effectiveRole === "manager") && (
+        <button
+          className="fab"
+          onClick={() => navigate("/tickets/new")}
+          aria-label="Create ticket"
+          title="Create ticket"
+        >
+          <Icons.Plus />
+        </button>
+      )}
       <AiAgentPanel open={aiPanel} onClose={() => setAiPanel(false)} toast={toast} />
     </div>
   );
@@ -857,7 +863,11 @@ function AppRoutes({
       <Route path="/resources/*" element={<ResourcesLive toast={toast} />} />
       <Route
         path="/organization"
-        element={<OrganizationLive toast={toast} />}
+        element={
+          <AdminOnly>
+            <OrganizationLive toast={toast} />
+          </AdminOnly>
+        }
       />
       <Route
         path="/settings/*"
@@ -872,17 +882,47 @@ function AppRoutes({
       <Route path="/sessions" element={<Sessions toast={toast} />} />
       <Route
         path="/integrations/*"
-        element={<IntegrationsLive toast={toast} />}
+        element={
+          <AdminOnly>
+            <IntegrationsLive toast={toast} />
+          </AdminOnly>
+        }
       />
-      <Route path="/audit-logs" element={<AuditLogsLive />} />
-      <Route path="/import" element={<ImportExportLive toast={toast} />} />
-      <Route path="/export" element={<ImportExportLive toast={toast} />} />
+      <Route
+        path="/audit-logs"
+        element={
+          <AdminOnly>
+            <AuditLogsLive />
+          </AdminOnly>
+        }
+      />
+      <Route
+        path="/import"
+        element={
+          <AdminOnly>
+            <ImportExportLive toast={toast} />
+          </AdminOnly>
+        }
+      />
+      <Route
+        path="/export"
+        element={
+          <AdminOnly>
+            <ImportExportLive toast={toast} />
+          </AdminOnly>
+        }
+      />
       <Route path="/403" element={<ErrorPage code="403" />} />
       <Route path="/500" element={<ErrorPage code="500" />} />
       <Route path="/offline" element={<ErrorPage code="Offline" />} />
       <Route path="*" element={<ErrorPage code="404" />} />
     </Routes>
   );
+}
+
+function AdminOnly({ children }: { children: React.ReactNode }) {
+  const { role } = useWorkspace();
+  return role === "admin" ? <>{children}</> : <Navigate to="/403" replace />;
 }
 
 function Projects() {
@@ -1251,6 +1291,7 @@ function ProjectDetail() {
       <Empty
         title="Project not found"
         body="The requested project key does not exist."
+        action={{ label: "Back to projects", to: "/projects" }}
       />
     );
 
@@ -1276,10 +1317,12 @@ function ProjectDetail() {
           <Icons.UserPlus />
           Members
         </button>
-        <button className="btn primary" onClick={() => nav("/tickets/new")}>
-          <Icons.Plus />
-          Add ticket
-        </button>
+        {role === "admin" || role === "manager" ? (
+          <button className="btn primary" onClick={() => nav("/tickets/new")}>
+            <Icons.Plus />
+            Add ticket
+          </button>
+        ) : null}
       </PageHead>
       <div className="tabs">
         {["Overview", "Board", "Backlog", "Sprints", "Tickets", "Settings"].map(
@@ -1392,22 +1435,39 @@ function ProjectDetail() {
   );
 }
 
+function matchesTicket(
+  ticket: Pick<Ticket, "title" | "key" | "labels">,
+  query: string,
+  selectedLabel: string,
+) {
+  const needle = query.trim().toLocaleLowerCase();
+  const labelNeedle = selectedLabel.trim().toLocaleLowerCase();
+  const labels = (ticket.labels || []).map((label) => String(label));
+  const matchesQ =
+    !needle ||
+    [ticket.title, ticket.key, ...labels].some((value) =>
+      String(value || "").toLocaleLowerCase().includes(needle),
+    );
+  const matchesLabel =
+    !labelNeedle ||
+    labels.some((label) => label.toLocaleLowerCase() === labelNeedle);
+  return matchesQ && matchesLabel;
+}
+
 function TicketTable({ rows }: { rows?: Ticket[] }) {
   const { tickets: wsTickets } = useWorkspace();
   const nav = useNavigate();
   const [params] = useSearchParams();
   const q = params.get("q") || "";
   const filter = params.get("filter") || "";
+  const selectedLabel = params.get("label") || "";
   const sort = params.get("sort") || "";
 
   const data = rows || wsTickets;
 
   // Filter
   const filtered = data.filter((t) => {
-    const matchesQ = q
-      ? t.title.toLowerCase().includes(q.toLowerCase()) ||
-        t.key.toLowerCase().includes(q.toLowerCase())
-      : true;
+    const matchesQ = matchesTicket(t, q, selectedLabel);
     const matchesFilter = filter === "open" ? t.status !== "Done" : true;
     return matchesQ && matchesFilter;
   });
@@ -1457,6 +1517,7 @@ function TicketTable({ rows }: { rows?: Ticket[] }) {
               <td>
                 <small>{t.key}</small>
                 <b>{t.title}</b>
+                <LabelChips labels={t.labels} />
               </td>
               <td>
                 <Badge tone={t.status.toLowerCase().replaceAll(" ", "")}>
@@ -1490,18 +1551,25 @@ function TicketTable({ rows }: { rows?: Ticket[] }) {
 }
 function TicketList() {
   const nav = useNavigate();
+  const { role, labelOptions } = useWorkspace();
+  const isLeader = role === "admin" || role === "manager";
   return (
     <>
       <PageHead
         title="Tickets"
         desc="Find and manage work across your organization."
       >
-        <button className="btn primary" onClick={() => nav("/tickets/new")}>
-          <Icons.Plus />
-          New ticket
-        </button>
+        {isLeader && (
+          <button className="btn primary" onClick={() => nav("/tickets/new")}>
+            <Icons.Plus />
+            New ticket
+          </button>
+        )}
       </PageHead>
-      <FilterBar placeholder="Search by key or title…" />
+      <FilterBar
+        placeholder="Search by key, title, or label…"
+        labelOptions={labelOptions}
+      />
       <section className="card no-pad">
         <TicketTable />
       </section>
@@ -1521,10 +1589,12 @@ function Board({
     dashboard,
     mutate,
     role,
+    labelOptions,
   } = useWorkspace();
   const nav = useNavigate();
   const [params] = useSearchParams();
   const q = params.get("q") || "";
+  const selectedLabel = params.get("label") || "";
   const [view, setView] = useState<"board" | "list">("board");
   const [filters, setFilters] = useState(false);
   const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
@@ -1551,9 +1621,7 @@ function Board({
   // Filter tickets
   const filteredTickets = wsTickets.filter((t) => {
     if (projectFilter && t.project !== projectFilter) return false;
-    const matchesQ =
-      t.title.toLowerCase().includes(q.toLowerCase()) ||
-      t.key.toLowerCase().includes(q.toLowerCase());
+    const matchesQ = matchesTicket(t, q, selectedLabel);
     const matchesFilter = filter === "open" ? t.status !== "Done" : true;
     return matchesQ && matchesFilter;
   });
@@ -1721,7 +1789,12 @@ function Board({
           </button>
         )}
       </PageHead>
-      {filters && <FilterBar placeholder="Search tickets…" />}
+      {filters && (
+        <FilterBar
+          placeholder="Search tickets…"
+          labelOptions={labelOptions}
+        />
+      )}
       <div className="board-toolbar">
         <div className="segmented">
           <button
@@ -1854,6 +1927,7 @@ function Board({
                     >
                       <small>{t.key}</small>
                       <b>{t.title}</b>
+                      <LabelChips labels={t.labels} />
                     </td>
                     <td>
                       <Badge tone={t.status.toLowerCase().replaceAll(" ", "")}>
@@ -1975,11 +2049,7 @@ function Board({
                     >
                       {t.title}
                     </h3>
-                    <div className="labels">
-                      {t.labels.map((l: string) => (
-                        <Badge key={l}>{l}</Badge>
-                      ))}
-                    </div>
+                    <LabelChips labels={t.labels} />
                     <div className="ticket-foot">
                       <Badge tone={t.priority}>
                         <i className="dot" />
@@ -2052,6 +2122,7 @@ function SprintDetail() {
       <Empty
         title="Sprint not found"
         body="The requested sprint does not exist."
+        action={{ label: "Back to sprints", to: "/sprints" }}
       />
     );
 
@@ -2234,8 +2305,10 @@ function SprintDetail() {
 
 function CompleteSprint({ toast }: { toast: (s: string) => void }) {
   const { sprintId } = useParams();
-  const { dashboard, tickets, mutate } = useWorkspace();
+  const { dashboard, tickets, mutate, role } = useWorkspace();
   const nav = useNavigate();
+  const [destinationSprintId, setDestinationSprintId] = useState("");
+  const isLeader = role === "admin" || role === "manager";
 
   const s = (dashboard?.sprints || []).find((x: any) => x._id === sprintId);
   if (!s)
@@ -2243,8 +2316,10 @@ function CompleteSprint({ toast }: { toast: (s: string) => void }) {
       <Empty
         title="Sprint not found"
         body="The requested sprint does not exist."
+        action={{ label: "Back to sprints", to: "/sprints" }}
       />
     );
+  if (!isLeader) return <ErrorPage code="403" />;
 
   const sprintTickets = tickets.filter((t) => t.sprintId === s._id);
   const completedTickets = sprintTickets.filter((t) => t.status === "Done");
@@ -2266,8 +2341,6 @@ function CompleteSprint({ toast }: { toast: (s: string) => void }) {
   const otherSprints = (dashboard?.sprints || []).filter(
     (x: any) => x._id !== s._id && x.status === "planned",
   );
-  const [destinationSprintId, setDestinationSprintId] = useState("");
-
   const handleComplete = async () => {
     try {
       await mutate(() =>
@@ -2336,22 +2409,16 @@ function CompleteSprint({ toast }: { toast: (s: string) => void }) {
 
 function RiskPage() {
   const { sprintId } = useParams();
-  const { dashboard, tickets, mutate, toast } = useWorkspace();
+  const { dashboard, tickets, mutate, toast, role } = useWorkspace();
   const [analysis, setAnalysis] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const isLeader = role === "admin" || role === "manager";
 
   const s = (dashboard?.sprints || []).find((x: any) => x._id === sprintId);
-  if (!s)
-    return (
-      <Empty
-        title="Sprint not found"
-        body="The requested sprint does not exist."
-      />
-    );
-
-  const sprintTickets = tickets.filter((t) => t.sprintId === s._id);
+  const sprintTickets = s ? tickets.filter((t) => t.sprintId === s._id) : [];
 
   const recalculateRisk = async () => {
+    if (!s) return;
     setLoading(true);
     try {
       const plannedPoints = s.plannedPoints || 0;
@@ -2400,15 +2467,21 @@ function RiskPage() {
         }),
       });
 
-      await mutate(() =>
-        api(`/sprints/${s._id}`, {
-          method: "PATCH",
-          body: JSON.stringify({ riskScore: result.risk.finalScore }),
-        }),
-      );
+      if (isLeader) {
+        await mutate(() =>
+          api(`/sprints/${s._id}`, {
+            method: "PATCH",
+            body: JSON.stringify({ riskScore: result.risk.finalScore }),
+          }),
+        );
+      }
 
       setAnalysis(result);
-      toast("Sprint risk recalculated and saved successfully");
+      toast(
+        isLeader
+          ? "Sprint risk recalculated and saved successfully"
+          : "Sprint risk recalculated",
+      );
     } catch (err) {
       toast(err instanceof Error ? err.message : "Recalculation failed");
     } finally {
@@ -2418,7 +2491,16 @@ function RiskPage() {
 
   useEffect(() => {
     recalculateRisk();
-  }, [sprintId]);
+  }, [sprintId, s?._id]);
+
+  if (!s)
+    return (
+      <Empty
+        title="Sprint not found"
+        body="The requested sprint does not exist."
+        action={{ label: "Back to sprints", to: "/sprints" }}
+      />
+    );
 
   const displayScore = analysis ? analysis.risk.finalScore : s.riskScore;
   let riskTone = "green";
@@ -2572,7 +2654,7 @@ function RiskPage() {
 
 function MyWork() {
   const [view, setView] = useState("list");
-  const { tickets } = useWorkspace();
+  const { tickets, labelOptions } = useWorkspace();
   return (
     <>
       <PageHead
@@ -2626,7 +2708,7 @@ function MyWork() {
           </div>
         </article>
       </div>
-      <FilterBar placeholder="Search my work…" />
+      <FilterBar placeholder="Search my work…" labelOptions={labelOptions} />
       {view === "list" ? (
         <section className="card no-pad">
           <TicketTable
@@ -2773,7 +2855,7 @@ function Team() {
       })
     : filtered;
 
-  const isLeader = ["admin", "manager"].includes(role);
+  const isAdmin = role === "admin";
 
   const resendInvite = async (userId: string) => {
     try {
@@ -2810,7 +2892,7 @@ function Team() {
         title="Team"
         desc="Balance capacity and help everyone do their best work."
       >
-        {isLeader && (
+        {isAdmin && (
           <button className="btn primary" onClick={() => nav("/team/invite")}>
             <Icons.UserPlus />
             Invite member
@@ -2851,7 +2933,7 @@ function Team() {
                   </Badge>
                 </div>
               </div>
-              {isLeader && u.inviteStatus === "invited" && (
+              {isAdmin && u.inviteStatus === "invited" && (
                 <div
                   style={{ display: "flex", justifyContent: "flex-end" }}
                   onClick={(e) => e.stopPropagation()}
@@ -2914,6 +2996,7 @@ function UserDetail() {
       <Empty
         title="User not found"
         body="The requested team member does not exist."
+        action={{ label: "Back to team", to: "/team" }}
       />
     );
 
@@ -2936,7 +3019,7 @@ function UserDetail() {
         method: "PATCH",
         body: JSON.stringify({
           name,
-          role: userRole,
+          ...(isAdmin ? { role: userRole } : {}),
           availability: Number(availability),
           capacity: Number(capacity),
           skills,
@@ -2951,9 +3034,9 @@ function UserDetail() {
     }
   };
 
-  const isLeader = ["admin", "manager"].includes(role);
+  const isAdmin = role === "admin";
   const isSelf = currentUser?.id === u._id;
-  const canEdit = isLeader || isSelf;
+  const canEdit = isAdmin || isSelf;
 
   const workload = u.capacity
     ? Math.min(100, Math.round(((u.capacity || 0) / 40) * 100))
@@ -2991,11 +3074,12 @@ function UserDetail() {
               <select
                 value={userRole}
                 onChange={(e) => setUserRole(e.target.value)}
-                disabled={!isLeader}
+                disabled={!isAdmin}
               >
                 <option value="admin">Admin</option>
                 <option value="manager">Manager</option>
-                <option value="contributor">Contributor</option>
+                <option value="engineer">Engineer</option>
+                <option value="designer">Designer</option>
               </select>
             </label>
             <label className="field">
@@ -3359,8 +3443,9 @@ function Reports() {
 }
 
 function AIPage({ toast }: { toast: (s: string) => void }) {
-  const { dashboard, refetch } = useWorkspace();
+  const { dashboard, refetch, role, labelOptions } = useWorkspace();
   const navigate = useNavigate();
+  const isLeader = role === "admin" || role === "manager";
   const [plan, setPlan] = useState<any>(null),
     [prompt, setPrompt] = useState(""),
     [busy, setBusy] = useState(false),
@@ -3581,8 +3666,14 @@ function AIPage({ toast }: { toast: (s: string) => void }) {
                     onChange={(event) => updateStory(i, { storyPoints: Number(event.target.value) })}
                     aria-label={`Ticket ${i + 1} story points`}
                   />
-                  <Badge>{t.labels[0]}</Badge>
                 </div>
+                <LabelPicker
+                  label={`Ticket ${i + 1} labels`}
+                  labels={t.labels || []}
+                  suggestions={labelOptions}
+                  onChange={(labels) => updateStory(i, { labels })}
+                  disabled={!isLeader}
+                />
               </div>
               <button
                 className="icon-btn"
@@ -3774,7 +3865,7 @@ function Settings({
     }
   };
 
-  const isLeader = ["admin", "manager"].includes(role);
+  const isAdmin = role === "admin";
 
   return (
     <>
@@ -3943,7 +4034,7 @@ function Settings({
                     max="60"
                     value={sprintLengthDays}
                     onChange={(e) => setSprintLengthDays(e.target.value)}
-                    disabled={!isLeader}
+                    disabled={!isAdmin}
                   />
                 </label>
                 <label className="field">
@@ -3954,7 +4045,7 @@ function Settings({
                     max="100"
                     value={riskThreshold}
                     onChange={(e) => setRiskThreshold(e.target.value)}
-                    disabled={!isLeader}
+                    disabled={!isAdmin}
                   />
                 </label>
                 <label className="field">
@@ -3962,7 +4053,7 @@ function Settings({
                   <input
                     value={timezone}
                     onChange={(e) => setTimezone(e.target.value)}
-                    disabled={!isLeader}
+                    disabled={!isAdmin}
                   />
                 </label>
                 <label
@@ -3978,11 +4069,11 @@ function Settings({
                     type="checkbox"
                     checked={aiEnabled}
                     onChange={(e) => setAiEnabled(e.target.checked)}
-                    disabled={!isLeader}
+                    disabled={!isAdmin}
                   />
                   <span>Enable AI Workspace and generative ticket tools</span>
                 </label>
-                {isLeader && (
+                {isAdmin && (
                   <button
                     className="btn primary"
                     type="submit"
@@ -4000,77 +4091,6 @@ function Settings({
   );
 }
 
-function ImportExport({ toast }: { toast: (s: string) => void }) {
-  const [file, setFile] = useState(false);
-  return (
-    <>
-      <PageHead
-        title="Import & export"
-        desc="Move workspace data safely and predictably."
-      />
-      <div className="two-col">
-        <section className="card import-card">
-          <span className="big-icon">
-            <Icons.ArrowDownToLine />
-          </span>
-          <h2>Import resources</h2>
-          <p>Upload a JSON file containing up to 1,000 workspace resources.</p>
-          <div
-            className={cx("dropzone", file && "ready")}
-            onClick={() => setFile(true)}
-          >
-            {file ? (
-              <>
-                <Icons.FileCheck2 />
-                <b>northstar-resources.json</b>
-                <span>248 records · 84 KB</span>
-              </>
-            ) : (
-              <>
-                <Icons.UploadCloud />
-                <b>Drop a JSON file here</b>
-                <span>or click to browse</span>
-              </>
-            )}
-          </div>
-          {file && (
-            <button
-              className="btn primary wide"
-              onClick={() => toast("248 resources imported")}
-            >
-              Review and import 248 records
-            </button>
-          )}
-        </section>
-        <section className="card export-card">
-          <span className="big-icon purple">
-            <Icons.ArrowUpFromLine />
-          </span>
-          <h2>Export organization</h2>
-          <p>Create a portable JSON export of all supported workspace data.</p>
-          {[
-            "Organization settings",
-            "18 users",
-            "12 projects and 684 tickets",
-            "46 workspace resources",
-          ].map((x) => (
-            <div className="export-row" key={x}>
-              <Icons.CheckCircle2 />
-              {x}
-            </div>
-          ))}
-          <button
-            className="btn dark wide"
-            onClick={() => toast("Export prepared successfully")}
-          >
-            <Icons.Download />
-            Prepare export
-          </button>
-        </section>
-      </div>
-    </>
-  );
-}
 function Sessions({ toast }: { toast: (s: string) => void }) {
   const { sessions = [], mutate } = useWorkspace();
   const revoke = async (id: string) => {
@@ -4152,10 +4172,16 @@ function FormPage({
   type: "project" | "sprint" | "ticket" | "invite";
   toast: (s: string) => void;
 }) {
-  const { dashboard, refetch } = useWorkspace();
+  const { dashboard, refetch, role, labelOptions } = useWorkspace();
   const nav = useNavigate();
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState("");
+  const [ticketLabels, setTicketLabels] = useState<string[]>([]);
+  const canCreate =
+    type === "invite"
+      ? role === "admin"
+      : role === "admin" || role === "manager";
+  if (!canCreate) return <ErrorPage code="403" />;
   const spec = {
     project: ["Create project", "Set up a new space for focused delivery."],
     sprint: [
@@ -4220,7 +4246,7 @@ function FormPage({
             status: "Backlog",
             acceptanceCriteria: [],
             epic: "Product backlog",
-            labels: [],
+            labels: ticketLabels,
             blocked: false,
             dependencies: [],
           }),
@@ -4341,6 +4367,13 @@ function FormPage({
               <span>Due date</span>
               <input name="dueDate" type="date" required />
             </label>
+            <div className="field full">
+              <LabelPicker
+                labels={ticketLabels}
+                suggestions={labelOptions}
+                onChange={setTicketLabels}
+              />
+            </div>
           </div>
         )}
         {type === "project" && (
@@ -4630,6 +4663,7 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
     refetch,
     role,
     user: currentUser,
+    labelOptions,
   } = useWorkspace();
   const [tab, setTab] = useState("comments");
 
@@ -4637,31 +4671,39 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
     (item: any) => item.ticketId === ticketId,
   );
 
+  const [title, setTitle] = useState(raw?.title || "");
+  const [desc, setDesc] = useState(raw?.description || "");
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingDesc, setIsEditingDesc] = useState(false);
+  const acceptanceCriteria = raw?.acceptanceCriteria || [];
+  const [acceptanceCriteriaDone, setAcceptanceCriteriaDone] = useState<boolean[]>(
+    acceptanceCriteria.map((_: string, index: number) =>
+      Boolean(raw?.acceptanceCriteriaDone?.[index]),
+    ),
+  );
+  const [ticketLabels, setTicketLabels] = useState<string[]>(raw?.labels || []);
+
+  // Sync state if ticket changes
+  useEffect(() => {
+    if (!raw) return;
+    setTitle(raw.title);
+    setDesc(raw.description || "");
+    setTicketLabels(raw.labels || []);
+    setAcceptanceCriteriaDone(
+      (raw.acceptanceCriteria || []).map((_: string, index: number) =>
+        Boolean(raw.acceptanceCriteriaDone?.[index]),
+      ),
+    );
+  }, [raw]);
+
   if (!raw)
     return (
       <Empty
         title="Ticket not found"
         body="This ticket does not exist in the current workspace."
+        action={{ label: "Back to tickets", to: "/tickets" }}
       />
     );
-
-  const [title, setTitle] = useState(raw.title);
-  const [desc, setDesc] = useState(raw.description || "");
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [isEditingDesc, setIsEditingDesc] = useState(false);
-  const acceptanceCriteria = raw.acceptanceCriteria || [];
-  const [acceptanceCriteriaDone, setAcceptanceCriteriaDone] = useState<boolean[]>(
-    acceptanceCriteria.map((_: string, index: number) => Boolean(raw.acceptanceCriteriaDone?.[index])),
-  );
-
-  // Sync state if ticket changes
-  useEffect(() => {
-    setTitle(raw.title);
-    setDesc(raw.description || "");
-    setAcceptanceCriteriaDone(
-      (raw.acceptanceCriteria || []).map((_: string, index: number) => Boolean(raw.acceptanceCriteriaDone?.[index])),
-    );
-  }, [raw]);
 
   const updateField = async (fields: any) => {
     try {
@@ -4677,6 +4719,12 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
       toast(err instanceof Error ? err.message : "Update failed");
       return false;
     }
+  };
+
+  const updateLabels = async (next: string[]) => {
+    const previous = ticketLabels;
+    setTicketLabels(next);
+    if (!(await updateField({ labels: next }))) setTicketLabels(previous);
   };
 
   const toggleAcceptanceCriterion = async (index: number) => {
@@ -4899,7 +4947,7 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
       <PageHead
         eyebrow={`${raw.ticketId}${raw.archivedAt ? " [ARCHIVED]" : ""}`}
         title={
-          isEditingTitle ? (
+          isLeader && isEditingTitle ? (
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -4918,34 +4966,37 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
             />
           ) : (
             <span
-              onClick={() => setIsEditingTitle(true)}
-              style={{ cursor: "pointer", borderBottom: "1px dashed #ccc" }}
+              onClick={isLeader ? () => setIsEditingTitle(true) : undefined}
+              style={isLeader ? { cursor: "pointer", borderBottom: "1px dashed #ccc" } : undefined}
             >
               {raw.title}
             </span>
           )
         }
         desc={
-          isEditingDesc ? (
-            <textarea
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
-              onBlur={() => {
-                setIsEditingDesc(false);
-                if (desc !== raw.description)
-                  updateField({ description: desc });
-              }}
-              autoFocus
-              style={{ width: "100%", height: "80px" }}
-            />
-          ) : (
-            <p
-              onClick={() => setIsEditingDesc(true)}
-              style={{ cursor: "pointer", borderBottom: "1px dashed #ccc" }}
-            >
-              {raw.description || "(No description, click to add)"}
-            </p>
-          )
+          <>
+            <LabelChips labels={ticketLabels} />
+            {isLeader && isEditingDesc ? (
+              <textarea
+                value={desc}
+                onChange={(e) => setDesc(e.target.value)}
+                onBlur={() => {
+                  setIsEditingDesc(false);
+                  if (desc !== raw.description)
+                    updateField({ description: desc });
+                }}
+                autoFocus
+                style={{ width: "100%", height: "80px" }}
+              />
+            ) : (
+              <p
+                onClick={isLeader ? () => setIsEditingDesc(true) : undefined}
+                style={isLeader ? { cursor: "pointer", borderBottom: "1px dashed #ccc" } : undefined}
+              >
+                {raw.description || "(No description, click to add)"}
+              </p>
+            )}
+          </>
         }
       >
         <button className="btn" onClick={copy}>
@@ -4956,19 +5007,23 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
           <Icons.Eye />
           Watch
         </button>
-        <button className="btn" onClick={clone}>
-          <Icons.CopyPlus />
-          Clone
-        </button>
+        {isLeader && (
+          <button className="btn" onClick={clone}>
+            <Icons.CopyPlus />
+            Clone
+          </button>
+        )}
         {isLeader && (
           <button className="btn warning" onClick={toggleArchive}>
             {raw.archivedAt ? "Restore" : "Archive"}
           </button>
         )}
-        <button className="btn danger" onClick={remove}>
-          <Icons.Trash2 />
-          Delete
-        </button>
+        {isLeader && (
+          <button className="btn danger" onClick={remove}>
+            <Icons.Trash2 />
+            Delete
+          </button>
+        )}
       </PageHead>
       <div className="ticket-layout">
         <section className="ticket-main">
@@ -5161,6 +5216,14 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
               style={{ width: "80px" }}
             />
           </div>
+          <div className="detail-labels">
+            <LabelPicker
+              labels={ticketLabels}
+              suggestions={labelOptions}
+              onChange={(next) => void updateLabels(next)}
+              disabled={!isLeader}
+            />
+          </div>
         </aside>
       </div>
     </>
@@ -5214,7 +5277,7 @@ function OrganizationLive({ toast }: { toast: (s: string) => void }) {
     }
   };
 
-  const isLeader = ["admin", "manager"].includes(role);
+  const isAdmin = role === "admin";
 
   const usage = [
     ["Team members", dashboard?.users?.length || 0],
@@ -5245,7 +5308,7 @@ function OrganizationLive({ toast }: { toast: (s: string) => void }) {
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  disabled={!isLeader}
+                  disabled={!isAdmin}
                 />
               </label>
               <label className="field">
@@ -5256,7 +5319,7 @@ function OrganizationLive({ toast }: { toast: (s: string) => void }) {
                 </div>
               </label>
             </div>
-            {isLeader && (
+            {isAdmin && (
               <button className="btn primary" onClick={save}>
                 Save changes
               </button>
@@ -5279,7 +5342,7 @@ function OrganizationLive({ toast }: { toast: (s: string) => void }) {
               ))}
             </div>
           </section>
-          {isLeader && (
+          {isAdmin && (
             <section className="card danger-zone">
               <CardTitle
                 title="Danger zone"
@@ -5304,7 +5367,8 @@ function BacklogLive({
   projectFilter?: string;
 }) {
   const navigate = useNavigate();
-  const { tickets: wsTickets } = useWorkspace();
+  const { tickets: wsTickets, role, labelOptions } = useWorkspace();
+  const isLeader = role === "admin" || role === "manager";
   const backlog = wsTickets.filter((ticket) => {
     if (ticket.status !== "Backlog") return false;
     if (projectFilter && ticket.project !== projectFilter) return false;
@@ -5316,15 +5380,17 @@ function BacklogLive({
         title="Backlog"
         desc="Live unplanned work from the workspace API."
       >
-        <button
-          className="btn primary"
-          onClick={() => navigate("/tickets/new")}
-        >
-          <Icons.Plus />
-          Create ticket
-        </button>
+        {isLeader && (
+          <button
+            className="btn primary"
+            onClick={() => navigate("/tickets/new")}
+          >
+            <Icons.Plus />
+            Create ticket
+          </button>
+        )}
       </PageHead>
-      <FilterBar placeholder="Search backlog…" />
+      <FilterBar placeholder="Search backlog…" labelOptions={labelOptions} />
       <section className="sprint-group">
         <div className="sprint-group-head">
           <div>
@@ -5339,6 +5405,11 @@ function BacklogLive({
           <Empty
             title="Backlog is empty"
             body="There is no unplanned work in this workspace."
+            action={
+              isLeader
+                ? { label: "Create ticket", to: "/tickets/new" }
+                : undefined
+            }
           />
         )}
       </section>
@@ -5529,7 +5600,7 @@ function CyclesLive({ toast }: { toast: (s: string) => void }) {
                   {isLeader && <button className="icon-btn" onClick={() => deleteCycle(cycle._id)} aria-label={`Delete ${cycle.name}`}><Icons.Trash2 /></button>}
                 </article>
               );
-            }) : <Empty title="No cycles" body="Create a cycle to group related sprints." />}
+            }) : <Empty title="No cycles" body={isLeader ? "Create a cycle to group related sprints." : "No cycles have been created yet."} />}
           </div>
         </section>
       </div>
@@ -5545,7 +5616,8 @@ function SprintsLive({
   projectFilter?: string;
 }) {
   const navigate = useNavigate();
-  const { dashboard } = useWorkspace();
+  const { dashboard, role } = useWorkspace();
+  const isLeader = role === "admin" || role === "manager";
   const rawSprints = dashboard?.sprints || [];
   const items = rawSprints.filter((s: any) => {
     if (projectFilter && s.project?.name !== projectFilter) return false;
@@ -5555,13 +5627,15 @@ function SprintsLive({
   return (
     <>
       <PageHead title="Sprints" desc="Live sprint plans and delivery status.">
-        <button
-          className="btn primary"
-          onClick={() => navigate("/sprints/new")}
-        >
-          <Icons.Plus />
-          New sprint
-        </button>
+        {isLeader && (
+          <button
+            className="btn primary"
+            onClick={() => navigate("/sprints/new")}
+          >
+            <Icons.Plus />
+            New sprint
+          </button>
+        )}
       </PageHead>
       <div className="sprint-list">
         {items.length ? (
@@ -5615,40 +5689,51 @@ function SprintsLive({
                   <small>Risk score</small>
                   <b className="risk-value">{s.riskScore}</b>
                 </div>
-                <button
-                  className="icon-btn"
-                  aria-label={`${s.status === "planned" ? "Start" : s.status === "active" ? "Complete" : "Reopen"} ${s.name}`}
-                  onClick={async (event) => {
-                    event.stopPropagation();
-                    if (s.status === "active") {
-                      navigate(`/sprints/${s._id}/complete`);
-                      return;
-                    }
-                    await api(
-                      `/sprints/${s._id}/${s.status === "planned" ? "start" : "reopen"}`,
-                      { method: "POST" },
-                    );
-                    toast(
-                      `Sprint ${s.status === "planned" ? "started" : "reopened"}`,
-                    );
-                    window.location.reload();
-                  }}
-                >
-                  {s.status === "planned" ? (
-                    <Icons.Play />
-                  ) : s.status === "active" ? (
-                    <Icons.CheckCircle2 />
-                  ) : (
-                    <Icons.RotateCcw />
-                  )}
-                </button>
+                {isLeader && (
+                  <button
+                    className="icon-btn"
+                    aria-label={`${s.status === "planned" ? "Start" : s.status === "active" ? "Complete" : "Reopen"} ${s.name}`}
+                    onClick={async (event) => {
+                      event.stopPropagation();
+                      if (s.status === "active") {
+                        navigate(`/sprints/${s._id}/complete`);
+                        return;
+                      }
+                      await api(
+                        `/sprints/${s._id}/${s.status === "planned" ? "start" : "reopen"}`,
+                        { method: "POST" },
+                      );
+                      toast(
+                        `Sprint ${s.status === "planned" ? "started" : "reopened"}`,
+                      );
+                      window.location.reload();
+                    }}
+                  >
+                    {s.status === "planned" ? (
+                      <Icons.Play />
+                    ) : s.status === "active" ? (
+                      <Icons.CheckCircle2 />
+                    ) : (
+                      <Icons.RotateCcw />
+                    )}
+                  </button>
+                )}
               </article>
             );
           })
         ) : (
           <Empty
             title="No sprints"
-            body="Create the first sprint for this workspace."
+            body={
+              isLeader
+                ? "Create the first sprint for this workspace."
+                : "No sprints have been created yet."
+            }
+            action={
+              isLeader
+                ? { label: "Create sprint", to: "/sprints/new" }
+                : undefined
+            }
           />
         )}
       </div>
@@ -5863,11 +5948,10 @@ function ResourcesLive({ toast }: { toast: (s: string) => void }) {
 
 function IntegrationsLive({ toast }: { toast: (s: string) => void }) {
   const { integrations: rows, mutate, role } = useWorkspace();
-  const isLeader = ["admin", "manager"].includes(role);
+  const isAdmin = role === "admin";
 
   const create = async () => {
-    if (!isLeader)
-      return toast("Only admins and managers can create integrations");
+    if (!isAdmin) return toast("Only admins can create integrations");
     const kind = window.prompt(
       "Integration type: webhook or api-token",
       "webhook",
@@ -5903,8 +5987,7 @@ function IntegrationsLive({ toast }: { toast: (s: string) => void }) {
   };
 
   const remove = async (item: any) => {
-    if (!isLeader)
-      return toast("Only admins and managers can delete integrations");
+    if (!isAdmin) return toast("Only admins can delete integrations");
     if (!window.confirm(`Delete ${item.name}?`)) return;
     try {
       await mutate(() =>
@@ -5922,7 +6005,7 @@ function IntegrationsLive({ toast }: { toast: (s: string) => void }) {
         title="Integrations"
         desc="Live API tokens and webhooks for this organization."
       >
-        {isLeader && (
+        {isAdmin && (
           <button className="btn primary" onClick={create}>
             <Icons.Plus />
             New integration
@@ -5944,7 +6027,7 @@ function IntegrationsLive({ toast }: { toast: (s: string) => void }) {
                 <h2>{item.name}</h2>
                 <Badge>{item.kind}</Badge>
               </div>
-              {isLeader && (
+              {isAdmin && (
                 <button
                   className="icon-btn"
                   aria-label={`Delete ${item.name}`}
@@ -6052,7 +6135,8 @@ function AuditLogsLive() {
 }
 
 function DashboardLive() {
-  const { dashboard: d = {}, user: currentUser, organization, projects, tickets, people, risk } = useWorkspace();
+  const { dashboard: d = {}, user: currentUser, organization, projects, tickets, people, risk, role } = useWorkspace();
+  const isLeader = role === "admin" || role === "manager";
   const summary = d.summary || {};
   const active =
     (d.sprints || []).find((s: any) => s.status === "active") || d.sprints?.[0];
@@ -6114,10 +6198,12 @@ function DashboardLive() {
           <Icons.CircleUserRound />
           View my work
         </NavLink>
-        <NavLink className="btn primary" to="/tickets/new">
-          <Icons.Plus />
-          New ticket
-        </NavLink>
+        {isLeader && (
+          <NavLink className="btn primary" to="/tickets/new">
+            <Icons.Plus />
+            New ticket
+          </NavLink>
+        )}
       </PageHead>
       <div className="metrics">
         {metrics.map(([label, value, sub, icon, tone]) => {
