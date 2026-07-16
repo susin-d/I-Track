@@ -94,6 +94,7 @@ create table if not exists tickets (
   story_points numeric not null default 0, assignee text, reporter text not null, project text not null,
   sprint text, epic text not null default '', labels jsonb not null default '[]'::jsonb,
   due_date timestamptz, blocked boolean not null default false, dependencies jsonb not null default '[]'::jsonb,
+  issue_links jsonb not null default '[]'::jsonb,
   comments jsonb not null default '[]'::jsonb, work_logs jsonb not null default '[]'::jsonb,
   history jsonb not null default '[]'::jsonb, status_transitions jsonb not null default '[]'::jsonb,
   watchers jsonb not null default '[]'::jsonb, attachments jsonb not null default '[]'::jsonb,
@@ -103,6 +104,7 @@ create table if not exists tickets (
   archived_at timestamptz, created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
   unique (organization, ticket_id)
 );
+alter table tickets add column if not exists issue_links jsonb not null default '[]'::jsonb;
 
 create table if not exists workspace_resources (
   id text primary key default gen_random_uuid()::text, organization text not null references organizations(id),
@@ -153,8 +155,29 @@ create table if not exists audit_events (
 );
 
 create index if not exists tickets_org_status_idx on tickets (organization, status);
+create index if not exists tickets_org_project_idx on tickets (organization, project);
+create index if not exists tickets_org_sprint_idx on tickets (organization, sprint);
+create index if not exists tickets_org_assignee_idx on tickets (organization, assignee);
+create index if not exists projects_org_status_idx on projects (organization, status);
+create index if not exists sprints_org_project_status_idx on sprints (organization, project, status);
+create index if not exists cycles_org_start_idx on cycles (organization, start_date);
+create index if not exists resources_org_kind_project_idx on workspace_resources (organization, kind, project);
 create index if not exists audit_events_org_created_idx on audit_events (organization, created_at desc);
 create index if not exists sessions_expires_idx on sessions (expires_at);
+create index if not exists sessions_user_active_idx on sessions (user_id, revoked_at);
+create index if not exists action_tokens_user_kind_idx on action_tokens (user_id, kind);
 create index if not exists memberships_org_status_idx on organization_memberships (organization, status);
 create index if not exists invitations_email_status_idx on invitations (lower(email), status, expires_at);
 create index if not exists notifications_user_created_idx on notifications (organization, user_id, created_at desc);
+
+do $$
+declare table_name text;
+begin
+  foreach table_name in array array[
+    'organizations', 'users', 'organization_memberships', 'invitations', 'projects', 'sprints',
+    'cycles', 'tickets', 'workspace_resources', 'sessions', 'action_tokens', 'notifications',
+    'integrations', 'counters', 'audit_events'
+  ] loop
+    execute format('alter table %I enable row level security', table_name);
+  end loop;
+end $$;

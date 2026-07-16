@@ -10,6 +10,7 @@ import { Project } from "../models/Project.js";
 import { Sprint } from "../models/Sprint.js";
 import { Ticket } from "../models/Ticket.js";
 import { User } from "../models/User.js";
+import { OrganizationMembership } from "../models/WorkspaceAccess.js";
 import { generatedTicketSchema } from "../schemas/ai.js";
 
 const router = Router();
@@ -167,13 +168,15 @@ router.post("/confirm-ticket-plan", requireRole(["admin", "manager"]), async (re
   if (!parsed.success) return res.status(400).json({ message: "Invalid ticket plan confirmation", issues: parsed.error.issues });
 
   const organization = req.user!.organizationId;
-  const [project, sprint, assignee, reporter] = await Promise.all([
+  const [project, sprint, assigneeMembership, reporterMembership, assignee, reporter] = await Promise.all([
     Project.findOne({ _id: parsed.data.projectId, organization }),
     Sprint.findOne({ _id: parsed.data.sprintId, organization }),
-    User.findOne({ _id: parsed.data.assigneeId, organization }),
-    User.findOne({ _id: req.user!.userId, organization }),
+    OrganizationMembership.findOne({ user: parsed.data.assigneeId, organization, status: "active" }),
+    OrganizationMembership.findOne({ user: req.user!.userId, organization, status: "active" }),
+    User.findById(parsed.data.assigneeId),
+    User.findById(req.user!.userId),
   ]);
-  if (!project || !sprint || !assignee || !reporter) return res.status(404).json({ message: "Project, sprint, assignee, or reporter not found" });
+  if (!project || !sprint || !assigneeMembership || !reporterMembership || !assignee || !reporter) return res.status(404).json({ message: "Project, sprint, assignee, or reporter not found" });
 
   const existingCount = await Ticket.countDocuments({ organization, project: project._id });
   let next = existingCount + 101;

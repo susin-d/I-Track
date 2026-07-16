@@ -5,6 +5,7 @@ const result = spawnSync(process.execPath, ["--import", "tsx", "scripts/apply-po
   env: {
     ...process.env,
     DATABASE_URL: process.env.LOCAL_DATABASE_URL ?? "postgresql://jiira:jiira_dev_password@127.0.0.1:5433/jiira",
+    SUPABASE_DATABASE_URL: "",
   },
   stdio: "inherit",
 });

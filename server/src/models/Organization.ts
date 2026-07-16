@@ -1,55 +1,6 @@
-import mongoose, { Schema } from "mongoose";
+import { createPgModel } from "../db/pgModel.js";
+import { User } from "./User.js";
 
-export interface IOrganization {
-  name: string;
-  slug: string;
-  plan: "starter" | "scale" | "enterprise";
-  owner: mongoose.Types.ObjectId;
-  onboardingCompletedAt?: Date;
-  settings: {
-    riskThreshold: number;
-    sprintLengthDays: number;
-    weeklyCapacityHours: number;
-    timezone: string;
-    aiEnabled: boolean;
-    slaPolicy: Record<"critical" | "high" | "medium" | "low", { firstResponseHours: number; resolutionHours: number }>;
-  };
-}
-
-const organizationSchema = new Schema<IOrganization>(
-  {
-    name: { type: String, required: true },
-    slug: { type: String, required: true, unique: true },
-    plan: { type: String, default: "starter" },
-    owner: { type: Schema.Types.ObjectId, ref: "User" },
-    onboardingCompletedAt: Date,
-    settings: {
-      riskThreshold: { type: Number, default: 65 },
-      sprintLengthDays: { type: Number, default: 14 },
-      weeklyCapacityHours: { type: Number, default: 40 },
-      timezone: { type: String, default: "Asia/Calcutta" },
-      aiEnabled: { type: Boolean, default: true },
-      slaPolicy: {
-        critical: {
-          firstResponseHours: { type: Number, default: 1 },
-          resolutionHours: { type: Number, default: 8 },
-        },
-        high: {
-          firstResponseHours: { type: Number, default: 4 },
-          resolutionHours: { type: Number, default: 24 },
-        },
-        medium: {
-          firstResponseHours: { type: Number, default: 8 },
-          resolutionHours: { type: Number, default: 72 },
-        },
-        low: {
-          firstResponseHours: { type: Number, default: 24 },
-          resolutionHours: { type: Number, default: 120 },
-        },
-      },
-    },
-  },
-  { timestamps: true },
-);
-
-export const Organization = mongoose.model<IOrganization>("Organization", organizationSchema);
+export interface IOrganization { name: string; slug: string; plan: "starter" | "scale" | "enterprise"; owner: string; onboardingCompletedAt?: Date; settings: { riskThreshold: number; sprintLengthDays: number; weeklyCapacityHours: number; timezone: string; aiEnabled: boolean; slaPolicy: Record<"critical" | "high" | "medium" | "low", { firstResponseHours: number; resolutionHours: number }> } }
+const settings = { riskThreshold: 65, sprintLengthDays: 14, weeklyCapacityHours: 40, timezone: "Asia/Calcutta", aiEnabled: true, slaPolicy: { critical: { firstResponseHours: 1, resolutionHours: 8 }, high: { firstResponseHours: 4, resolutionHours: 24 }, medium: { firstResponseHours: 8, resolutionHours: 72 }, low: { firstResponseHours: 24, resolutionHours: 120 } } };
+export const Organization = createPgModel({ table: "organizations", columns: ["name", "slug", "plan", "owner", "onboardingCompletedAt", "settings"], json: ["settings"], defaults: { plan: "starter", settings }, relations: { owner: { model: () => User } } });

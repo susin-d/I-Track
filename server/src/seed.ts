@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { connectDb } from "./config/db.js";
+import { postgres } from "./config/postgres.js";
 import { Organization } from "./models/Organization.js";
 import { Cycle } from "./models/Cycle.js";
 import { Project } from "./models/Project.js";
@@ -12,7 +13,7 @@ import { defaultSlaPolicy, getTicketSlaStatus, slaFieldsForTicket, statusTransit
 
 async function seed() {
   await connectDb();
-  await Promise.all([Organization.deleteMany({}), User.deleteMany({}), OrganizationMembership.deleteMany({}), Invitation.deleteMany({}), Project.deleteMany({}), Sprint.deleteMany({}), Cycle.deleteMany({}), Ticket.deleteMany({})]);
+  await postgres.query("TRUNCATE TABLE audit_events, integrations, notifications, action_tokens, sessions, counters, workspace_resources, tickets, cycles, sprints, projects, invitations, organization_memberships, organizations, users RESTART IDENTITY CASCADE");
 
   const passwordHash = await bcrypt.hash("Password123!", 10);
   const organization = await Organization.create({
@@ -31,7 +32,7 @@ async function seed() {
   organization.owner = users[0]._id;
   organization.onboardingCompletedAt = new Date();
   await organization.save();
-  await OrganizationMembership.insertMany(users.map((user, index) => ({ user: user._id, organization: organization._id, role: index === 0 ? "admin" : user.role, status: "active", skills: user.skills, availability: user.availability, capacity: user.capacity })));
+  await OrganizationMembership.insertMany(users.map((user, index) => ({ user: user._id, organization: organization._id, role: index === 0 ? "admin" : seedUsers[index].role, status: "active", skills: seedUsers[index].skills, availability: seedUsers[index].availability, capacity: seedUsers[index].capacity })));
   const project = await Project.create({
     organization: organization._id,
     key: "ITR",

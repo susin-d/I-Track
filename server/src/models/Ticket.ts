@@ -1,89 +1,11 @@
-import mongoose, { Schema } from "mongoose";
+import { createPgModel } from "../db/pgModel.js";
+import { Project } from "./Project.js";
+import { Sprint } from "./Sprint.js";
+import { User } from "./User.js";
 
 export type TicketStatus = "Backlog" | "To Do" | "In Progress" | "In Review" | "Done";
 export type TicketPriority = "low" | "medium" | "high" | "critical";
 export type TicketSlaStatus = "healthy" | "due_soon" | "breached" | "resolved";
-
-export interface ITicket {
-  organization: mongoose.Types.ObjectId;
-  ticketId: string;
-  title: string;
-  description: string;
-  acceptanceCriteria: string[];
-  acceptanceCriteriaDone?: boolean[];
-  status: TicketStatus;
-  priority: TicketPriority;
-  storyPoints: number;
-  assignee?: mongoose.Types.ObjectId;
-  reporter: mongoose.Types.ObjectId;
-  project: mongoose.Types.ObjectId;
-  sprint: mongoose.Types.ObjectId;
-  epic: string;
-  labels: string[];
-  dueDate: Date;
-  blocked: boolean;
-  dependencies: string[];
-  issueLinks: { type: string; ticket: string; createdAt: Date }[];
-  comments: { author: string; body: string; createdAt: Date }[];
-  workLogs: { author: string; hours: number; note: string; createdAt: Date }[];
-  history: { event: string; createdAt: Date }[];
-  statusTransitions: { from?: TicketStatus; to: TicketStatus; at: Date; actor?: mongoose.Types.ObjectId }[];
-  watchers: mongoose.Types.ObjectId[];
-  attachments: { name: string; url: string; mimeType?: string; size?: number; uploadedBy: mongoose.Types.ObjectId; createdAt: Date }[];
-  slaPolicy: { firstResponseHours: number; resolutionHours: number };
-  firstResponseDueAt: Date;
-  resolutionDueAt: Date;
-  firstRespondedAt?: Date;
-  resolvedAt?: Date;
-  slaStatus: TicketSlaStatus;
-  rank: number;
-  archivedAt?: Date;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-const ticketSchema = new Schema<ITicket>(
-  {
-    organization: { type: Schema.Types.ObjectId, ref: "Organization", required: true },
-    ticketId: { type: String, required: true },
-    title: { type: String, required: true },
-    description: { type: String, required: true },
-    acceptanceCriteria: [{ type: String }],
-    acceptanceCriteriaDone: { type: [Boolean], default: [] },
-    status: { type: String, required: true },
-    priority: { type: String, required: true },
-    storyPoints: { type: Number, required: true },
-    assignee: { type: Schema.Types.ObjectId, ref: "User" },
-    reporter: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    project: { type: Schema.Types.ObjectId, ref: "Project", required: true },
-    sprint: { type: Schema.Types.ObjectId, ref: "Sprint", required: true },
-    epic: { type: String, required: true },
-    labels: [{ type: String }],
-    dueDate: { type: Date, required: true },
-    blocked: { type: Boolean, default: false },
-    dependencies: [{ type: String }],
-    issueLinks: [{ type: String, ticket: String, createdAt: { type: Date, default: Date.now } }],
-    comments: [{ author: String, body: String, createdAt: Date }],
-    workLogs: [{ author: String, hours: Number, note: String, createdAt: Date }],
-    history: [{ event: String, createdAt: Date }],
-    statusTransitions: [{ from: String, to: String, at: Date, actor: { type: Schema.Types.ObjectId, ref: "User" } }],
-    watchers: [{ type: Schema.Types.ObjectId, ref: "User" }],
-    attachments: [{ name: String, url: String, mimeType: String, size: Number, uploadedBy: { type: Schema.Types.ObjectId, ref: "User" }, createdAt: Date }],
-    slaPolicy: {
-      firstResponseHours: { type: Number, default: 8 },
-      resolutionHours: { type: Number, default: 72 },
-    },
-    firstResponseDueAt: { type: Date, default: () => new Date(Date.now() + 8 * 60 * 60 * 1000) },
-    resolutionDueAt: { type: Date, default: () => new Date(Date.now() + 72 * 60 * 60 * 1000) },
-    firstRespondedAt: Date,
-    resolvedAt: Date,
-    slaStatus: { type: String, default: "healthy" },
-    rank: { type: Number, default: 0 },
-    archivedAt: Date,
-  },
-  { timestamps: true },
-);
-
-ticketSchema.index({ organization: 1, ticketId: 1 }, { unique: true });
-
-export const Ticket = mongoose.model<ITicket>("Ticket", ticketSchema);
+export interface ITicket { [key: string]: any; organization: string; ticketId: string; title: string; description: string; acceptanceCriteria: string[]; acceptanceCriteriaDone?: boolean[]; status: TicketStatus; priority: TicketPriority; storyPoints: number; assignee?: string; reporter: string; project: string; sprint?: string; epic: string; labels: string[]; dueDate?: Date; blocked: boolean; dependencies: string[]; issueLinks: any[]; comments: any[]; workLogs: any[]; history: any[]; statusTransitions: any[]; watchers: string[]; attachments: any[]; slaPolicy: { firstResponseHours: number; resolutionHours: number }; firstResponseDueAt?: Date; resolutionDueAt?: Date; firstRespondedAt?: Date; resolvedAt?: Date; slaStatus: TicketSlaStatus; rank: number; archivedAt?: Date; createdAt?: Date; updatedAt?: Date }
+const json = ["acceptanceCriteria", "acceptanceCriteriaDone", "labels", "dependencies", "issueLinks", "comments", "workLogs", "history", "statusTransitions", "watchers", "attachments", "slaPolicy"];
+export const Ticket = createPgModel({ table: "tickets", columns: ["organization", "ticketId", "title", "description", "acceptanceCriteria", "acceptanceCriteriaDone", "status", "priority", "storyPoints", "assignee", "reporter", "project", "sprint", "epic", "labels", "dueDate", "blocked", "dependencies", "issueLinks", "comments", "workLogs", "history", "statusTransitions", "watchers", "attachments", "slaPolicy", "firstResponseDueAt", "resolutionDueAt", "firstRespondedAt", "resolvedAt", "slaStatus", "rank", "archivedAt"], json, defaults: { description: "", acceptanceCriteria: [], acceptanceCriteriaDone: [], storyPoints: 0, epic: "", labels: [], blocked: false, dependencies: [], issueLinks: [], comments: [], workLogs: [], history: [], statusTransitions: [], watchers: [], attachments: [], slaPolicy: { firstResponseHours: 8, resolutionHours: 72 }, slaStatus: "healthy", rank: 0 }, relations: { assignee: { model: () => User }, reporter: { model: () => User }, project: { model: () => Project }, sprint: { model: () => Sprint }, watchers: { model: () => User, many: true } } });

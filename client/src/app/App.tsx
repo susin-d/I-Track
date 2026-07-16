@@ -4565,11 +4565,11 @@ function ChangePasswordLive({ toast }: { toast: (s: string) => void }) {
       <form onSubmit={submit}>
         <label className="field">
           <span>Current password</span>
-          <input name="currentPassword" type="password" required />
+          <PasswordInput name="currentPassword" required />
         </label>
         <label className="field">
           <span>New password</span>
-          <input name="newPassword" type="password" minLength={8} required />
+          <PasswordInput name="newPassword" minLength={8} required />
         </label>
         {error && <div className="auth-message">{error}</div>}
         <div className="form-actions">
@@ -6461,7 +6461,25 @@ function InvitationAcceptPage() {
   const [preview, setPreview] = useState<any>(null); const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
   useEffect(() => { if (token) api<any>(`/invitations/preview?token=${encodeURIComponent(token)}`).then(setPreview).catch((e) => setError(e.message)); else setError("Invitation token is missing"); }, [token]);
   const submit = async (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); setBusy(true); setError(""); const values = new FormData(event.currentTarget); try { if (preview.accountExists && !getToken()) await login(preview.invitation.email, String(values.get("password"))); const password = String(values.get("password") || ""); if (!preview.accountExists && password !== String(values.get("confirmPassword") || "")) throw new Error("Passwords do not match"); const session = await api<any>("/auth/accept-invite", { method: "POST", body: JSON.stringify({ token, ...(!preview.accountExists ? { name: values.get("name"), password } : {}) }) }); saveSession(session); window.location.assign("/dashboard"); } catch (e) { setError(e instanceof Error ? e.message : "Unable to accept invitation"); } finally { setBusy(false); } };
-  return <div className="auth"><section className="auth-brand"><div className="brand big"><div className="brand-mark"><img src="/logo-mark.png" alt="" /></div><span>I-TRACK</span></div><div><Badge tone="lime">WORKSPACE INVITATION</Badge><h1>Work together.<br />Stay aligned.</h1><p>Review the workspace and your role before joining.</p></div></section><section className="auth-form">{!preview ? <div className="auth-message">{error || "Loading invitation…"}</div> : <form onSubmit={submit}><span className="eyebrow">INVITED WORKSPACE</span><h1>Join {preview.invitation.organization?.name}</h1><p>{preview.invitation.invitedBy?.name || "A workspace admin"} invited you as <b>{fmt(preview.invitation.role)}</b>.</p><div className="invite-summary"><span>Email <b>{preview.invitation.email}</b></span><span>Role <b>{fmt(preview.invitation.role)}</b></span></div>{!preview.accountExists && <label className="field"><span>Full name</span><input name="name" defaultValue={preview.invitation.name} required /></label>}<label className="field"><span>{preview.accountExists ? "Password to sign in" : "Create password"}</span><input name="password" type="password" minLength={8} required /></label>{!preview.accountExists && <label className="field"><span>Confirm password</span><input name="confirmPassword" type="password" minLength={8} required /></label>}{error && <div className="auth-message">{error}</div>}<button className="btn primary wide" disabled={busy}>{busy ? "Joining…" : "Accept invitation"}</button>{preview.accountExists && <button type="button" className="btn wide" onClick={() => nav("/login")}>Use another account</button>}</form>}</section></div>;
+  return <div className="auth"><section className="auth-brand"><div className="brand big"><div className="brand-mark"><img src="/logo-mark.png" alt="" /></div><span>I-TRACK</span></div><div><Badge tone="lime">WORKSPACE INVITATION</Badge><h1>Work together.<br />Stay aligned.</h1><p>Review the workspace and your role before joining.</p></div></section><section className="auth-form">{!preview ? <div className="auth-message">{error || "Loading invitation…"}</div> : <form onSubmit={submit}><span className="eyebrow">INVITED WORKSPACE</span><h1>Join {preview.invitation.organization?.name}</h1><p>{preview.invitation.invitedBy?.name || "A workspace admin"} invited you as <b>{fmt(preview.invitation.role)}</b>.</p><div className="invite-summary"><span>Email <b>{preview.invitation.email}</b></span><span>Role <b>{fmt(preview.invitation.role)}</b></span></div>{!preview.accountExists && <label className="field"><span>Full name</span><input name="name" defaultValue={preview.invitation.name} required /></label>}<label className="field"><span>{preview.accountExists ? "Password to sign in" : "Create password"}</span><PasswordInput name="password" minLength={8} required /></label>{!preview.accountExists && <label className="field"><span>Confirm password</span><PasswordInput name="confirmPassword" minLength={8} required /></label>}{error && <div className="auth-message">{error}</div>}<button className="btn primary wide" disabled={busy}>{busy ? "Joining…" : "Accept invitation"}</button>{preview.accountExists && <button type="button" className="btn wide" onClick={() => nav("/login")}>Use another account</button>}</form>}</section></div>;
+}
+
+function PasswordInput(props: Omit<React.InputHTMLAttributes<HTMLInputElement>, "type">) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="password">
+      <input {...props} type={visible ? "text" : "password"} />
+      <button
+        type="button"
+        className="password-toggle"
+        aria-label={visible ? "Hide password" : "Show password"}
+        aria-pressed={visible}
+        onClick={() => setVisible((current) => !current)}
+      >
+        {visible ? <Icons.EyeOff /> : <Icons.Eye />}
+      </button>
+    </div>
+  );
 }
 
 function AuthPageLive({ type }: { type: string }) {
@@ -6611,9 +6629,8 @@ function AuthPageLive({ type }: { type: string }) {
           {type !== "forgot-password" && (
             <label className="field">
               <span>Password</span>
-              <input
+              <PasswordInput
                 name="password"
-                type="password"
                 minLength={8}
                 required
               />
@@ -6622,7 +6639,7 @@ function AuthPageLive({ type }: { type: string }) {
           {tokenFlow && (
             <label className="field">
               <span>Confirm password</span>
-              <input name="confirmPassword" type="password" minLength={8} required />
+              <PasswordInput name="confirmPassword" minLength={8} required />
             </label>
           )}
           {tokenFlow && !token && (

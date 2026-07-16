@@ -28,7 +28,7 @@ export async function pendingInvitationsFor(email: string) {
   return invitations.map((i: any) => ({ id: i.id, organization: publicOrganization(i.organization), invitedBy: publicUser(i.invitedBy), email: i.email, name: i.name, role: i.role, capacity: i.capacity, expiresAt: i.expiresAt }));
 }
 
-export async function issueTokens(user: Pick<IUser, "email"> & { id: string }, membership?: any, userAgent?: string) {
+export async function issueTokens(user: any, membership?: any, userAgent?: string) {
   const organizationId = membership ? String(membership.organization?._id || membership.organization) : undefined;
   const claims = { userId: user.id, email: user.email, ...(organizationId ? { organizationId, membershipId: membership.id, role: membership.role } : {}) };
   const token = jwt.sign(claims, env.jwtSecret, { expiresIn: "8h" });

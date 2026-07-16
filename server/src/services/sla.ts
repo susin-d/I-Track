@@ -1,5 +1,3 @@
-import type { HydratedDocument } from "mongoose";
-import mongoose from "mongoose";
 import type { IOrganization } from "../models/Organization.js";
 import type { ITicket, TicketPriority, TicketSlaStatus, TicketStatus } from "../models/Ticket.js";
 
@@ -44,15 +42,15 @@ export function getTicketSlaStatus(ticket: Pick<ITicket, "status" | "firstRespon
 }
 
 export function statusTransition(from: TicketStatus | undefined, to: TicketStatus, at = new Date(), actor?: string) {
-  return { ...(from ? { from } : {}), to, at, ...(actor && mongoose.Types.ObjectId.isValid(actor) ? { actor: new mongoose.Types.ObjectId(actor) } : {}) };
+  return { ...(from ? { from } : {}), to, at, ...(actor ? { actor } : {}) };
 }
 
-export function applySlaState(ticket: HydratedDocument<ITicket>, now = new Date()) {
+export function applySlaState(ticket: any, now = new Date()) {
   ticket.slaStatus = getTicketSlaStatus(ticket, now);
   return ticket;
 }
 
-export function cycleMetricsForTickets(tickets: Array<Pick<ITicket, "createdAt" | "resolvedAt" | "statusTransitions">>) {
+export function cycleMetricsForTickets(tickets: Array<any>) {
   const leadTimes: number[] = [];
   const cycleTimes: number[] = [];
   const dayMs = 24 * 60 * 60 * 1000;
@@ -61,7 +59,7 @@ export function cycleMetricsForTickets(tickets: Array<Pick<ITicket, "createdAt" 
     const resolvedAt = ticket.resolvedAt;
     const createdAt = ticket.createdAt;
     if (resolvedAt && createdAt) leadTimes.push((resolvedAt.getTime() - createdAt.getTime()) / dayMs);
-    const firstInProgress = (ticket.statusTransitions || []).find((transition) => transition.to === "In Progress")?.at;
+    const firstInProgress = (ticket.statusTransitions || []).find((transition: any) => transition.to === "In Progress")?.at;
     if (resolvedAt && firstInProgress) cycleTimes.push((resolvedAt.getTime() - firstInProgress.getTime()) / dayMs);
   }
 

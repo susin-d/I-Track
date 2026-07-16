@@ -33,7 +33,7 @@ async function nextTicketId(req: AuthRequest, projectId: string) {
     { $inc: { value: 1 } },
     { upsert: true, new: true, setDefaultsOnInsert: true },
   );
-  return `${project.key}-${String(counter.value).padStart(3, "0")}`;
+  return `${project.key}-${String(counter!.value).padStart(3, "0")}`;
 }
 
 router.get("/me", async (req: AuthRequest, res) => {
@@ -76,7 +76,7 @@ router.get("/dashboard", async (req: AuthRequest, res) => {
         ? sprints.slice(-5).map((sprint) => ({ name: sprint.name, value: sprint.riskScore }))
         : [{ name: "Current", value: 0 }],
       velocity: sprints
-        .flatMap((sprint) => (sprint.velocityHistory || []).map((value, index) => ({ name: `${sprint.name} ${index + 1}`, value })))
+        .flatMap((sprint) => (sprint.velocityHistory || []).map((value: number, index: number) => ({ name: `${sprint.name} ${index + 1}`, value })))
         .slice(-5),
     },
     recommendation: {
@@ -101,14 +101,14 @@ router.get("/my-work", async (req: AuthRequest, res) => {
   weekEnd.setDate(weekEnd.getDate() + 7);
   const assigned = tickets.filter((ticket) => String(ticket.assignee || "") === String(user?._id || ""));
   const dueThisWeek = assigned.filter((ticket) => ticket.dueDate >= weekStart && ticket.dueDate < weekEnd);
-  const watched = tickets.filter((ticket) => ticket.watchers.some((watcher) => String(watcher) === String(user?._id || "")));
+  const watched = tickets.filter((ticket) => ticket.watchers.some((watcher: unknown) => String(watcher) === String(user?._id || "")));
   const activeSprint = sprints.find((sprint) => sprint.status === "active") || sprints.at(-1);
   const sprintStart = activeSprint?.startDate ? new Date(activeSprint.startDate) : null;
   const sprintEnd = activeSprint?.endDate ? new Date(activeSprint.endDate) : null;
   if (sprintEnd) sprintEnd.setHours(23, 59, 59, 999);
   const loggedHours = tickets.reduce((total, ticket) => {
     if (!activeSprint || String(ticket.sprint || "") !== String(activeSprint._id)) return total;
-    return total + ticket.workLogs.reduce((hours, log) => {
+    return total + ticket.workLogs.reduce((hours: number, log: any) => {
       const createdAt = new Date(log.createdAt);
       const inSprint = !sprintStart || !sprintEnd || (createdAt >= sprintStart && createdAt <= sprintEnd);
       return log.author === user?.name && inSprint ? hours + (log.hours || 0) : hours;
@@ -259,7 +259,7 @@ router.route("/tickets")
     const body = parseOr400(ticketSchema, req.body, res);
     if (!body) return;
     const [assignee, project, sprint, organization] = await Promise.all([
-      User.exists({ _id: body.assignee, organization: orgId(req) }),
+      OrganizationMembership.exists({ user: body.assignee, organization: orgId(req), status: "active" }),
       Project.exists({ _id: body.project, organization: orgId(req) }),
       Sprint.exists({ _id: body.sprint, organization: orgId(req) }),
       Organization.findById(orgId(req)),
@@ -280,7 +280,7 @@ router.patch("/tickets/:id", requireRole(["admin", "manager"]), async (req: Auth
   const body = parseOr400(ticketSchema.partial(), req.body, res);
   if (!body) return;
   const checks = await Promise.all([
-    body.assignee ? User.exists({ _id: body.assignee, organization: orgId(req) }) : true,
+    body.assignee ? OrganizationMembership.exists({ user: body.assignee, organization: orgId(req), status: "active" }) : true,
     body.project ? Project.exists({ _id: body.project, organization: orgId(req) }) : true,
     body.sprint ? Sprint.exists({ _id: body.sprint, organization: orgId(req), ...(body.project ? { project: body.project } : {}) }) : true,
   ]);
@@ -390,8 +390,9 @@ router.route("/team")
     const body = parseOr400(teamSchema, req.body, res);
     if (!body) return;
     const passwordHash = "invited-user-no-password-yet";
-    const user = await User.create({ ...body, organization: orgId(req), passwordHash, inviteStatus: "invited" });
-    return res.status(201).json({ user: { ...user.toObject(), passwordHash: undefined } });
+    const user = await User.create({ name: body.name, email: body.email, avatarColor: body.avatarColor, passwordHash });
+    const membership = await OrganizationMembership.create({ user: user._id, organization: orgId(req), role: body.role, status: "disabled", skills: body.skills, availability: body.availability, capacity: body.capacity });
+    return res.status(201).json({ user: { ...user.toObject(), passwordHash: undefined, role: membership.role, inviteStatus: "invited", skills: membership.skills, availability: membership.availability, capacity: membership.capacity } });
   });
 
 router.route("/settings")

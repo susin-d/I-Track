@@ -1,30 +1,5 @@
-import mongoose, { Schema } from "mongoose";
+import { createPgModel } from "../db/pgModel.js";
+import { Sprint } from "./Sprint.js";
 
-export interface ICycle {
-  organization: mongoose.Types.ObjectId;
-  name: string;
-  goal: string;
-  status: "planned" | "active" | "completed";
-  startDate: Date;
-  endDate: Date;
-  sprints: mongoose.Types.ObjectId[];
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-const cycleSchema = new Schema<ICycle>(
-  {
-    organization: { type: Schema.Types.ObjectId, ref: "Organization", required: true },
-    name: { type: String, required: true },
-    goal: { type: String, default: "" },
-    status: { type: String, required: true, default: "planned" },
-    startDate: { type: Date, required: true },
-    endDate: { type: Date, required: true },
-    sprints: [{ type: Schema.Types.ObjectId, ref: "Sprint" }],
-  },
-  { timestamps: true },
-);
-
-cycleSchema.index({ organization: 1, name: 1 }, { unique: true });
-
-export const Cycle = mongoose.model<ICycle>("Cycle", cycleSchema);
+export interface ICycle { organization: string; name: string; goal: string; status: "planned" | "active" | "completed"; startDate: Date; endDate: Date; sprints: string[]; createdAt?: Date; updatedAt?: Date }
+export const Cycle = createPgModel({ table: "cycles", columns: ["organization", "name", "goal", "status", "startDate", "endDate", "sprints"], json: ["sprints"], defaults: { goal: "", status: "planned", sprints: [] }, relations: { sprints: { model: () => Sprint, many: true } } });
