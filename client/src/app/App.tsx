@@ -1969,12 +1969,45 @@ function TicketTable({ rows }: { rows?: Ticket[] }) {
           ? "green"
           : "lime";
 
+  // Palette for epic colours (cycles through)
+  const EPIC_COLORS = ["#7c3aed","#0ea5e9","#f59e0b","#10b981","#ef4444","#ec4899","#6366f1","#14b8a6"];
+  const epicColorMap = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    let i = 0;
+    sorted.forEach((t) => {
+      const e = (t.epic as string | undefined) || "";
+      if (e && !map[e]) map[e] = EPIC_COLORS[i++ % EPIC_COLORS.length];
+    });
+    return map;
+  }, [sorted]);
+
+  // Group by epic
+  type Group = { epic: string; color: string; tickets: typeof sorted };
+  const groups: Group[] = React.useMemo(() => {
+    const map = new Map<string, typeof sorted>();
+    sorted.forEach((t) => {
+      const e = (t.epic as string | undefined) || "No Epic";
+      if (!map.has(e)) map.set(e, []);
+      map.get(e)!.push(t);
+    });
+    return Array.from(map.entries()).map(([epic, tickets]) => ({
+      epic,
+      color: epicColorMap[epic] || "#94a3b8",
+      tickets,
+    }));
+  }, [sorted, epicColorMap]);
+
+  const [collapsed, setCollapsed] = React.useState<Record<string, boolean>>({});
+  const toggleEpic = (epic: string) =>
+    setCollapsed((prev) => ({ ...prev, [epic]: !prev[epic] }));
+
   return (
     <div className="table-wrap">
       <table>
         <thead>
           <tr>
             <th>Ticket</th>
+            <th>Epic</th>
             <th>Status</th>
             <th>Priority</th>
             <th>SLA</th>
@@ -1983,49 +2016,80 @@ function TicketTable({ rows }: { rows?: Ticket[] }) {
           </tr>
         </thead>
         <tbody>
-          {sorted.map((t) => (
-            <tr
-              key={t.id}
-              onClick={() => nav(`/tickets/${t.key}`)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  nav(`/tickets/${t.key}`);
-                }
-              }}
-              tabIndex={0}
-              aria-label={`Open ${t.key}: ${t.title}`}
-              style={{ cursor: "pointer" }}
-            >
-              <td>
-                <small>{t.key}</small>
-                <b>{t.title}</b>
-                <LabelChips labels={t.labels} />
-              </td>
-              <td>
-                <Badge tone={t.status.toLowerCase().replaceAll(" ", "")}>
-                  {t.status}
-                </Badge>
-              </td>
-              <td>
-                <Badge tone={t.priority}>
-                  <i className="dot" />
-                  {fmt(t.priority)}
-                </Badge>
-              </td>
-              <td>
-                <Badge tone={slaTone(t.slaStatus)}>
-                  {fmt(t.slaStatus || "healthy")}
-                </Badge>
-              </td>
-              <td>
-                <span className="person">
-                  <Avatar name={t.assignee} />
-                  {t.assignee}
-                </span>
-              </td>
-              <td>{t.points}</td>
-            </tr>
+          {groups.map(({ epic, color, tickets }) => (
+            <React.Fragment key={epic}>
+              {/* Epic group header row */}
+              <tr
+                className="epic-group-row"
+                onClick={() => toggleEpic(epic)}
+                style={{ cursor: "pointer" }}
+                aria-label={`Toggle ${epic} group`}
+              >
+                <td colSpan={7} style={{ padding: "8px 14px" }}>
+                  <span className="epic-group-header">
+                    <span className="epic-swatch" style={{ background: color }} />
+                    <span className="epic-group-name">{epic}</span>
+                    <span className="epic-count">{tickets.length} ticket{tickets.length !== 1 ? "s" : ""}</span>
+                    <span className="epic-chevron">{collapsed[epic] ? "▶" : "▼"}</span>
+                  </span>
+                </td>
+              </tr>
+              {/* Ticket rows under this epic */}
+              {!collapsed[epic] && tickets.map((t) => (
+                <tr
+                  key={t.id}
+                  onClick={() => nav(`/tickets/${t.key}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      nav(`/tickets/${t.key}`);
+                    }
+                  }}
+                  tabIndex={0}
+                  aria-label={`Open ${t.key}: ${t.title}`}
+                  style={{ cursor: "pointer" }}
+                >
+                  <td>
+                    <small>{t.key}</small>
+                    <b>{t.title}</b>
+                    <LabelChips labels={t.labels} />
+                  </td>
+                  <td>
+                    {(t.epic as string | undefined) ? (
+                      <span className="epic-pill" style={{ background: `${color}22`, color, borderColor: `${color}55` }}>
+                        <Icons.Layers size={10} />
+                        {t.epic}
+                      </span>
+                    ) : (
+                      <span className="epic-pill-none">—</span>
+                    )}
+                  </td>
+                  <td>
+                    <Badge tone={t.status.toLowerCase().replaceAll(" ", "")}>
+                      {t.status}
+                    </Badge>
+                  </td>
+                  <td>
+                    <Badge tone={t.priority}>
+                      <i className="dot" />
+                      {fmt(t.priority)}
+                    </Badge>
+                  </td>
+                  <td>
+                    <Badge tone={slaTone(t.slaStatus)}>
+                      {fmt(t.slaStatus || "healthy")}
+                    </Badge>
+                  </td>
+                  <td>
+                    <span className="person">
+                      <Avatar name={t.assignee} />
+                      {t.assignee}
+                    </span>
+                  </td>
+                  <td>{t.points}</td>
+                </tr>
+              ))}
+            </React.Fragment>
           ))}
         </tbody>
       </table>
@@ -3753,6 +3817,39 @@ function Reports() {
   const [selectedProject, setSelectedProject] = useState("All");
   const [selectedMember, setSelectedMember] = useState("All");
   const [startDateStr, setStartDateStr] = useState("");
+  // Mini calendar picker state
+  const [calOpen, setCalOpen] = useState(false);
+  const today = new Date();
+  const [calYear, setCalYear] = useState(today.getFullYear());
+  const [calMonth, setCalMonth] = useState(today.getMonth()); // 0-based
+  const calRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!calOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (calRef.current && !calRef.current.contains(e.target as Node)) setCalOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [calOpen]);
+  const calDaysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+  const calFirstWeekday = (y: number, m: number) => new Date(y, m, 1).getDay(); // 0=Sun
+  const calMonthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const calDayNames = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+  const selectedDate = startDateStr ? new Date(startDateStr + "T00:00:00") : null;
+  const handleCalPrevMonth = () => {
+    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
+    else setCalMonth(m => m - 1);
+  };
+  const handleCalNextMonth = () => {
+    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
+    else setCalMonth(m => m + 1);
+  };
+  const handleCalSelectDay = (day: number) => {
+    const mm = String(calMonth + 1).padStart(2, "0");
+    const dd = String(day).padStart(2, "0");
+    setStartDateStr(`${calYear}-${mm}-${dd}`);
+    setCalOpen(false);
+  };
 
   const sprints = dashboard?.sprints || [];
   const users = dashboard?.users || [];
@@ -3902,15 +3999,86 @@ function Reports() {
             </option>
           ))}
         </select>
-        <label className="btn">
-          <Icons.CalendarDays />
-          <input
-            type="date"
-            aria-label="Report start date"
-            value={startDateStr}
-            onChange={(e) => setStartDateStr(e.target.value)}
-          />
-        </label>
+        <div ref={calRef} style={{ position: "relative" }}>
+          <button
+            className="btn"
+            aria-label="Pick start date"
+            onClick={() => setCalOpen(o => !o)}
+            style={startDateStr ? { background: "var(--accent,#7c3aed)", color: "#fff", borderColor: "var(--accent,#7c3aed)" } : {}}
+          >
+            <Icons.CalendarDays size={15} />
+            {startDateStr
+              ? selectedDate!.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+              : "Start Date"}
+            {startDateStr && (
+              <span
+                role="button"
+                aria-label="Clear date"
+                onClick={e => { e.stopPropagation(); setStartDateStr(""); }}
+                style={{ marginLeft: 4, opacity: 0.75, lineHeight: 1, cursor: "pointer" }}
+              >✕</span>
+            )}
+          </button>
+          {calOpen && (
+            <div style={{
+              position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 999,
+              background: "var(--surface, #18181b)", border: "1px solid var(--border, #333)",
+              borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+              padding: "12px", width: 240,
+              animation: "fadeIn .15s ease"
+            }}>
+              {/* Month navigation */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <button onClick={handleCalPrevMonth} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted,#888)", padding: "2px 6px", borderRadius: 6, fontSize: 16 }}>‹</button>
+                <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text,#e5e7eb)" }}>{calMonthNames[calMonth]} {calYear}</span>
+                <button onClick={handleCalNextMonth} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted,#888)", padding: "2px 6px", borderRadius: 6, fontSize: 16 }}>›</button>
+              </div>
+              {/* Day-of-week headers */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
+                {calDayNames.map(d => (
+                  <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 600, color: "var(--text-muted,#888)", padding: "2px 0" }}>{d}</div>
+                ))}
+              </div>
+              {/* Day cells */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+                {Array.from({ length: calFirstWeekday(calYear, calMonth) }).map((_, i) => (
+                  <div key={`blank-${i}`} />
+                ))}
+                {Array.from({ length: calDaysInMonth(calYear, calMonth) }, (_, i) => i + 1).map(day => {
+                  const isToday = day === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
+                  const isSelected = selectedDate && day === selectedDate.getDate() && calMonth === selectedDate.getMonth() && calYear === selectedDate.getFullYear();
+                  return (
+                    <button
+                      key={day}
+                      onClick={() => handleCalSelectDay(day)}
+                      style={{
+                        border: "none", background: isSelected ? "var(--accent,#7c3aed)" : isToday ? "var(--accent-muted,rgba(124,58,237,0.18))" : "transparent",
+                        color: isSelected ? "#fff" : isToday ? "var(--accent,#7c3aed)" : "var(--text,#e5e7eb)",
+                        borderRadius: 6, padding: "4px 0", cursor: "pointer", fontSize: 12, fontWeight: isSelected || isToday ? 700 : 400,
+                        transition: "background .12s",
+                      }}
+                      onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = "var(--accent-muted,rgba(124,58,237,0.18))"; }}
+                      onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = isToday ? "var(--accent-muted,rgba(124,58,237,0.18))" : "transparent"; }}
+                    >{day}</button>
+                  );
+                })}
+              </div>
+              {/* Footer */}
+              <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <button
+                  onClick={() => { const t = new Date(); setCalYear(t.getFullYear()); setCalMonth(t.getMonth()); handleCalSelectDay(t.getDate()); }}
+                  style={{ fontSize: 11, background: "none", border: "none", color: "var(--accent,#7c3aed)", cursor: "pointer", fontWeight: 600 }}
+                >Today</button>
+                {startDateStr && (
+                  <button
+                    onClick={() => { setStartDateStr(""); setCalOpen(false); }}
+                    style={{ fontSize: 11, background: "none", border: "none", color: "var(--text-muted,#888)", cursor: "pointer" }}
+                  >Clear</button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {tab === "Overview" && (
@@ -4964,6 +5132,33 @@ function FormPage({
       <form onSubmit={submit}>
         {type === "ticket" && (
           <div className="form-grid">
+            {/* Hierarchy explainer banner */}
+            <div className="hierarchy-banner full">
+              <div className="hierarchy-banner-title">
+                <Icons.Layers size={14} />
+                How tasks are organised
+              </div>
+              <div className="hierarchy-steps">
+                <div className="hierarchy-step epic">
+                  <span className="hs-icon"><Icons.Zap size={12} /></span>
+                  <span className="hs-label">Epic</span>
+                  <span className="hs-desc">A big goal or feature</span>
+                </div>
+                <Icons.ChevronRight size={14} className="hs-arrow" />
+                <div className="hierarchy-step story">
+                  <span className="hs-icon"><Icons.BookOpen size={12} /></span>
+                  <span className="hs-label">Story</span>
+                  <span className="hs-desc">A user-facing piece of work</span>
+                </div>
+                <Icons.ChevronRight size={14} className="hs-arrow" />
+                <div className="hierarchy-step task">
+                  <span className="hs-icon"><Icons.CheckSquare size={12} /></span>
+                  <span className="hs-label">Task</span>
+                  <span className="hs-desc">A technical sub-task</span>
+                </div>
+              </div>
+              <p className="hierarchy-hint">Each ticket you create belongs to an <strong>Epic</strong>. The AI Task Architect can automatically break an Epic down into Stories and Tasks for you.</p>
+            </div>
             <label className="field full">
               <span>Title</span>
               <input
@@ -5676,6 +5871,10 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
   };
 
   const addIssueLink = async () => {
+    const ticketOptions = (dashboard?.tickets || [])
+      .filter((t: any) => t._id !== raw._id)
+      .map((t: any) => ({ label: `${t.ticketId} – ${t.title}`, value: t._id }));
+
     const values = await appForm({
       title: "Link ticket",
       fields: [
@@ -5692,25 +5891,24 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
             { label: "Duplicates", value: "duplicates" },
           ],
         },
-        { name: "targetKey", label: "Ticket key", required: true, placeholder: "For example ITR-102" },
+        {
+          name: "targetId",
+          label: "Ticket key",
+          type: "select",
+          required: true,
+          options: ticketOptions,
+        },
       ],
       confirmLabel: "Add link",
     });
     const type = values?.type;
-    const targetKey = values?.targetKey?.trim();
-    if (!targetKey) return;
-    const target = (dashboard?.tickets || []).find(
-      (ticket: any) => ticket.ticketId.toLowerCase() === targetKey.trim().toLowerCase(),
-    );
-    if (!target) {
-      toast(`Ticket ${targetKey} was not found`);
-      return;
-    }
+    const targetId = values?.targetId;
+    if (!targetId) return;
     try {
       await mutate(() =>
         api(`/tickets/${raw._id}/links`, {
           method: "POST",
-          body: JSON.stringify({ type, ticket: target._id }),
+          body: JSON.stringify({ type, ticket: targetId }),
         }),
       );
       toast("Issue link added");
@@ -6051,6 +6249,45 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
               disabled={!isLeader}
             />
           </div>
+          {/* Epic breadcrumb */}
+          {raw.epic && (
+            <div className="detail-row epic-detail-row">
+              <span>Epic</span>
+              <span className="epic-breadcrumb">
+                <Icons.Layers size={12} />
+                {raw.epic}
+              </span>
+            </div>
+          )}
+
+          {/* Tickets in this Epic */}
+          {raw.epic && (() => {
+            const siblings = (dashboard?.tickets || []).filter(
+              (t: any) => t.epic === raw.epic && t.ticketId !== raw.ticketId
+            );
+            return siblings.length > 0 ? (
+              <div className="epic-siblings">
+                <div className="epic-siblings-title">
+                  <Icons.Layers size={12} />
+                  Other tickets in this epic
+                </div>
+                {siblings.slice(0, 5).map((s: any) => (
+                  <button
+                    key={s._id}
+                    className="epic-sibling-btn"
+                    onClick={() => navigate(`/tickets/${s.ticketId}`)}
+                  >
+                    <small>{s.ticketId}</small>
+                    <span>{s.title}</span>
+                  </button>
+                ))}
+                {siblings.length > 5 && (
+                  <span className="epic-siblings-more">+{siblings.length - 5} more</span>
+                )}
+              </div>
+            ) : null;
+          })()}
+
           <div className="ticket-links">
             <span>Issue links</span>
             {(raw.issueLinks || []).map((link: any, index: number) => {

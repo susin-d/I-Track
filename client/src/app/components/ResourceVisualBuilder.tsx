@@ -212,7 +212,19 @@ export const ALL_RESOURCE_FEATURE_CONFIG: Record<ResourceKind, FeatureConfig> = 
       { key: "version", label: "Version Number", initial: "v1.0.0" },
       { key: "startDate", label: "Development Start Date", type: "date" },
       { key: "releaseDate", label: "Target Release Date", type: "date" },
-      { key: "owner", label: "Release Manager", initial: "Unassigned" },
+      {
+        key: "owner",
+        label: "Release Manager",
+        initial: "Unassigned",
+        type: "select",
+        options: [
+          { label: "Unassigned", value: "Unassigned" },
+          { label: "Elena Rostova", value: "Elena Rostova" },
+          { label: "Alex Rivers", value: "Alex Rivers" },
+          { label: "Marcus Vance", value: "Marcus Vance" },
+          { label: "Sarah Chen", value: "Sarah Chen" },
+        ],
+      },
       {
         key: "status",
         label: "Release State",

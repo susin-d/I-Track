@@ -12,6 +12,7 @@ export type NotificationPreferences = {
 export type Ticket = {
   id: string;
   key: string;
+  ticketId?: string;
   title: string;
   status: TicketStatus;
   priority: Priority;
@@ -20,6 +21,8 @@ export type Ticket = {
   assigneeId?: string;
   project: string;
   labels: string[];
+  epic?: string;
+  dependencies?: string[];
   slaStatus?: "healthy" | "due_soon" | "breached" | "resolved";
   firstResponseDueAt?: string;
   resolutionDueAt?: string;
