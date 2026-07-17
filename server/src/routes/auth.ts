@@ -201,7 +201,7 @@ router.get("/me", requireAuth, async (req: AuthRequest, res) => {
   const membership = req.user!.organizationId ? await preferredMembership(user, req.user!.organizationId) : undefined;
   const organization = membership ? await (await import("../models/Organization.js")).Organization.findById(membership.organization) : null;
   const company = organization ? await (await import("../models/Company.js")).Company.findById(organization.company) : null;
-  return res.json({ user: { ...publicUser(user), role: membership?.role }, company: publicCompany(company), organization: publicOrganization(organization), workspace: publicOrganization(organization), activeMembership: membership ? { id: membership.id, role: membership.role, status: "status" in membership ? membership.status : "active" } : null, memberships: await membershipsFor(user.id), pendingInvitations: await pendingInvitationsFor(user.email), next: membership ? (membership.role !== "admin" || organization?.onboardingCompletedAt ? "/dashboard" : "/onboarding/project") : "/onboarding/workspace" });
+  return res.json({ user: { ...publicUser(user), role: membership?.role }, company: publicCompany(company), organization: publicOrganization(organization), workspace: publicOrganization(organization), activeMembership: membership ? { id: membership.id, role: membership.role, status: "status" in membership ? membership.status : "active" } : null, memberships: await membershipsFor(user.id, company?.id), pendingInvitations: await pendingInvitationsFor(user.email, company?.id), next: membership ? (membership.role !== "admin" || organization?.onboardingCompletedAt ? "/dashboard" : "/onboarding/project") : "/onboarding/workspace" });
 });
 
 router.post("/forgot-password", async (req, res) => {

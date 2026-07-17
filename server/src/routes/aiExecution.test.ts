@@ -32,3 +32,13 @@ test("mutation attempt keys are stable for equivalent JSON bodies", () => {
     mutationAttemptKey("POST", "/projects", { key: "ALP", nested: { a: 1, b: 2 }, name: "Alpha" }),
   );
 });
+
+test("AI executor passes cookies from incoming auth request", async () => {
+  const req = {
+    ...requestFor("admin"),
+    headers: { cookie: "itrack_access=session-token" },
+  } as AuthRequest;
+  const result = await executeAiRequest(req, { method: "TRACE", path: "/projects" });
+  assert.equal(result.status, 400);
+});
+

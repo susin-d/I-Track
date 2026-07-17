@@ -377,11 +377,29 @@ function Shell({
           {workspaceMenu && (
             <div className="workspace-menu" role="menu">
               <p>WORKSPACES</p>
-              {memberships.map((membership: any) => {
-                const selected = String(membership.organization?.id) === String(organization?.id || organization?._id);
-                return <button key={membership.id} className={selected ? "selected" : ""} role="menuitem" onClick={() => selected ? setWorkspaceMenu(false) : switchWorkspace(membership.organization.id)}><span className="avatar square">{(membership.organization?.name || "W").slice(0, 2).toUpperCase()}</span><span><b>{membership.organization?.name}</b><small>{selected ? "Current workspace" : fmt(membership.role)}</small></span>{selected && <Icons.Check size={16} />}</button>;
-              })}
-              {pendingInvitations.length > 0 && <><hr /><p>PENDING INVITATIONS</p>{pendingInvitations.map((invitation: any) => <button key={invitation.id} role="menuitem" onClick={() => { setWorkspaceMenu(false); setSelectedInvitation(invitation); }}><Icons.MailPlus size={17} /><span><b>{invitation.organization?.name}</b><small>Invited as {fmt(invitation.role)}</small></span></button>)}</>}
+              {(() => {
+                const activeCompanyId = String(company?.id || company?._id || organization?.companyId || organization?.company || "");
+                const companyMemberships = memberships.filter((membership: any) => {
+                  if (!activeCompanyId) return true;
+                  const mCompanyId = String(membership.organization?.companyId || membership.organization?.company || "");
+                  return !mCompanyId || mCompanyId === activeCompanyId;
+                });
+                return companyMemberships.map((membership: any) => {
+                  const selected = String(membership.organization?.id) === String(organization?.id || organization?._id);
+                  return <button key={membership.id} className={selected ? "selected" : ""} role="menuitem" onClick={() => selected ? setWorkspaceMenu(false) : switchWorkspace(membership.organization.id)}><span className="avatar square">{(membership.organization?.name || "W").slice(0, 2).toUpperCase()}</span><span><b>{membership.organization?.name}</b><small>{selected ? "Current workspace" : fmt(membership.role)}</small></span>{selected && <Icons.Check size={16} />}</button>;
+                });
+              })()}
+              {(() => {
+                const activeCompanyId = String(company?.id || company?._id || organization?.companyId || organization?.company || "");
+                const companyPendingInvitations = pendingInvitations.filter((invitation: any) => {
+                  if (!activeCompanyId) return true;
+                  const invCompanyId = String(invitation.organization?.companyId || invitation.organization?.company || "");
+                  return !invCompanyId || invCompanyId === activeCompanyId;
+                });
+                return companyPendingInvitations.length > 0 ? (
+                  <><hr /><p>PENDING INVITATIONS</p>{companyPendingInvitations.map((invitation: any) => <button key={invitation.id} role="menuitem" onClick={() => { setWorkspaceMenu(false); setSelectedInvitation(invitation); }}><Icons.MailPlus size={17} /><span><b>{invitation.organization?.name}</b><small>Invited as {fmt(invitation.role)}</small></span></button>)}</>
+                ) : null;
+              })()}
               <hr />
               <button
                 role="menuitem"
@@ -944,11 +962,9 @@ function AiAgentProvider({ children, toast }: { children: React.ReactNode; toast
             status: "running",
           }]);
         } else if (event.type === "tool_result") {
-          setToolActivities((current) => event.ok
-            ? current.map((activity) => activity.id === event.id
-              ? { ...activity, status: "complete" }
-              : activity)
-            : current.filter((activity) => activity.id !== event.id));
+          setToolActivities((current) => current.map((activity) => activity.id === event.id
+            ? { ...activity, status: event.ok ? "complete" : "error" }
+            : activity));
         } else if (event.type === "done") {
           res = event;
         } else if (event.type === "error") {

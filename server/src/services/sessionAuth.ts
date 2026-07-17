@@ -26,21 +26,29 @@ export function publicCompany(company: any) {
   return { id: company.id, _id: company.id, name: company.name, slug: company.slug, owner: company.owner, settings: company.settings };
 }
 
-export async function membershipsFor(userId: string) {
+export async function membershipsFor(userId: string, companyId?: string) {
   const [direct, companyMemberships, groupMemberships] = await Promise.all([
     OrganizationMembership.find({ user: userId, status: "active" }).populate("organization"),
-    CompanyMembership.find({ user: userId, status: "active" }),
+    CompanyMembership.find({ user: userId, status: "active", ...(companyId ? { company: companyId } : {}) }),
     CompanyGroupMember.find({ user: userId }),
   ]);
   const results = new Map<string, any>();
   for (const membership of direct as any[]) {
-    results.set(String(membership.organization?._id || membership.organization), { id: membership.id, organization: publicOrganization(membership.organization), role: membership.role, status: membership.status, accessSource: "direct", skills: membership.skills, availability: membership.availability, capacity: membership.capacity });
+    const org = membership.organization;
+    if (!org) continue;
+    const orgCompanyId = String(org.company || org.companyId || "");
+    if (companyId && orgCompanyId && orgCompanyId !== String(companyId)) continue;
+    const orgId = String(org._id || org.id || org);
+    results.set(orgId, { id: membership.id, organization: publicOrganization(org), role: membership.role, status: membership.status, accessSource: "direct", skills: membership.skills, availability: membership.availability, capacity: membership.capacity });
   }
   for (const membership of companyMemberships as any[]) {
     if (membership.role !== "admin") continue;
     const workspaces = await Organization.find({ company: membership.company });
-    for (const workspace of workspaces as any[]) if (!results.has(String(workspace._id))) {
-      results.set(String(workspace._id), { id: `company:${membership.id}`, organization: publicOrganization(workspace), role: "admin", status: "active", accessSource: "organization" });
+    for (const workspace of workspaces as any[]) {
+      const wId = String(workspace._id || workspace.id);
+      if (!results.has(wId)) {
+        results.set(wId, { id: `company:${membership.id}`, organization: publicOrganization(workspace), role: "admin", status: "active", accessSource: "organization" });
+      }
     }
   }
   const groupIds = (groupMemberships as any[]).map((item) => String(item.group));
@@ -54,14 +62,17 @@ export async function membershipsFor(userId: string) {
     ]);
     if (existing && existingRank >= grantRank) continue;
     const workspace = await Organization.findById(grant.workspace);
-    if (workspace) results.set(key, { id: `group:${grant.id}`, organization: publicOrganization(workspace), role: grant.role, status: "active", accessSource: "group" });
+    if (workspace && (!companyId || String(workspace.company) === String(companyId))) {
+      results.set(key, { id: `group:${grant.id}`, organization: publicOrganization(workspace), role: grant.role, status: "active", accessSource: "group" });
+    }
   }
   return [...results.values()];
 }
 
-export async function pendingInvitationsFor(email: string) {
-  const invitations = await Invitation.find({ email: email.toLowerCase(), status: "pending", expiresAt: { $gt: new Date() } }).populate("organization", "name slug plan").populate("invitedBy", "name email");
-  return invitations.map((i: any) => ({ id: i.id, organization: publicOrganization(i.organization), invitedBy: publicUser(i.invitedBy), email: i.email, name: i.name, role: i.role, capacity: i.capacity, expiresAt: i.expiresAt }));
+export async function pendingInvitationsFor(email: string, companyId?: string) {
+  const invitations = await Invitation.find({ email: email.toLowerCase(), status: "pending", expiresAt: { $gt: new Date() } }).populate("organization", "name slug plan company").populate("invitedBy", "name email");
+  const filtered = companyId ? invitations.filter((i: any) => String(i.organization?.company) === String(companyId)) : invitations;
+  return filtered.map((i: any) => ({ id: i.id, organization: publicOrganization(i.organization), invitedBy: publicUser(i.invitedBy), email: i.email, name: i.name, role: i.role, capacity: i.capacity, expiresAt: i.expiresAt }));
 }
 
 export async function issueTokens(user: any, membership?: any, userAgent?: string) {
@@ -76,10 +87,14 @@ export async function issueTokens(user: any, membership?: any, userAgent?: strin
 }
 
 export async function sessionResponse(user: any, membership?: any, userAgent?: string, response?: import("express").Response) {
-  const [tokens, memberships, pendingInvitations] = await Promise.all([issueTokens(user, membership, userAgent), membershipsFor(user.id), pendingInvitationsFor(user.email)]);
   const organization = membership ? await Organization.findById(membership.organization) : null;
   const company = organization ? await Company.findById(organization.company) : null;
   const companyMembership = company ? await CompanyMembership.findOne({ company: company._id, user: user.id, status: "active" }) : null;
+  const [tokens, memberships, pendingInvitations] = await Promise.all([
+    issueTokens(user, membership, userAgent),
+    membershipsFor(user.id, company?.id),
+    pendingInvitationsFor(user.email, company?.id),
+  ]);
   if (response) setSessionCookies(response, tokens.token, tokens.refreshToken);
   return { ...tokens, user: publicUser(user), company: publicCompany(company), companyRole: companyMembership?.role || null, organization: publicOrganization(organization), workspace: publicOrganization(organization), activeMembership: membership ? { id: membership.id, role: membership.role, status: membership.status || "active" } : null, memberships, pendingInvitations, next: membership ? (membership.role !== "admin" || organization?.onboardingCompletedAt ? "/dashboard" : "/onboarding/project") : "/onboarding/workspace" };
 }

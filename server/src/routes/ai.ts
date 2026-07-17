@@ -116,6 +116,7 @@ export async function executeAiRequest(req: AuthRequest, input: unknown): Promis
     method,
     headers: {
       authorization: req.headers.authorization ?? "",
+      cookie: req.headers.cookie ?? "",
       ...(method === "GET" || method === "DELETE" ? {} : { "content-type": "application/json" }),
     },
     body: method === "GET" || method === "DELETE" ? undefined : JSON.stringify(parsed.data.body ?? {}),
@@ -432,6 +433,7 @@ router.post("/chat", async (req, res) => {
     "Rules:",
     "- For destructive or irreversible actions (DELETE, archive, deactivate, etc.), describe what will happen and ask for explicit confirmation before proceeding.",
     "- Never expose credentials, tokens, or internal secrets.",
+    "- If a tool execution returns a successful (2xx) status or payload, treat the operation as successful and summarize the outcome to the user. Do not state that an operation failed if the tool returned a successful result.",
     "- Explain final failures in user-friendly product language without status codes, endpoint paths, or raw backend messages.",
     "- Never retry a failed create, update, or delete request with the same arguments. Explain the failure or ask for corrected information.",
     "- Prefer GET /dashboard when project, sprint, ticket, and user context is needed together; do not fetch those lists separately unless the dashboard lacks a required field.",
@@ -497,11 +499,19 @@ router.post("/chat", async (req, res) => {
     const model = env.openaiChatModel || "grok-3-mini";
     const failedMutationAttempts = new Set<string>();
     const MAX_ITERATIONS = 7;
-    const fallbackReply = () => allToolCalls.some((call) => call.error)
-      ? "I couldn't complete the request. Please check the information and try again."
-      : allToolCalls.length
-        ? "I finished the requested API operations."
-        : "I couldn't generate a response. Please try again.";
+    const fallbackReply = () => {
+      const lastExecution = [...allToolCalls].reverse().find((call) => call.name === "execute_itrack_api");
+      if (lastExecution) {
+        return lastExecution.error
+          ? "I couldn't complete the request. Please check the information and try again."
+          : "I finished the requested API operations.";
+      }
+      return allToolCalls.some((call) => call.error)
+        ? "I couldn't complete the request. Please check the information and try again."
+        : allToolCalls.length
+          ? "I finished the requested API operations."
+          : "I couldn't generate a response. Please try again.";
+    };
 
     let response = await measureAsync("ai.provider.initial", () => client.chat.completions.create({
       model,
@@ -556,10 +566,10 @@ router.post("/chat", async (req, res) => {
           sendEvent({ type: "tool_start", id: toolCall.id, name: toolCall.function.name, arguments: contractArgs });
           const contract = mutationContractFor(contractArgs.method, contractArgs.path);
           const result = contract
-            ? { endpoint: contract.endpoint, body: contract.body, ...(contract.prerequisites ? { prerequisites: contract.prerequisites } : {}) }
-            : { error: true, message: "No write contract exists for this method and path" };
-          allToolCalls.push({ name: toolCall.function.name, arguments: contractArgs, result, ...(!contract ? { error: true } : {}) });
-          sendEvent({ type: "tool_result", id: toolCall.id, ok: Boolean(contract), status: contract ? 200 : 404 });
+            ? { found: true, endpoint: contract.endpoint, body: contract.body, ...(contract.prerequisites ? { prerequisites: contract.prerequisites } : {}) }
+            : { found: false, message: "No custom write contract specified for this endpoint. Send standard fields." };
+          allToolCalls.push({ name: toolCall.function.name, arguments: contractArgs, result });
+          sendEvent({ type: "tool_result", id: toolCall.id, ok: true, status: 200 });
           messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify(result) });
           continue;
         }

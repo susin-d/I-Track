@@ -1024,12 +1024,17 @@ export function ResourceVisualModal({ kind, initialData, onSave, onClose }: Visu
     }
   };
 
+  const kindTitle = kind
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
   return (
     <div className="modal-wrap" role="presentation" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="card rv-modal-card" style={{ maxWidth: "860px", width: "95vw", display: "grid", gridTemplateColumns: "1fr 340px", gap: "20px", maxHeight: "90vh", overflow: "hidden" }}>
         <form onSubmit={handleSubmit} style={{ overflowY: "auto", paddingRight: "8px", display: "flex", flexDirection: "column", gap: "12px" }}>
           <div>
-            <h3 style={{ margin: "0 0 4px", fontSize: "18px" }}>{initialData ? "Edit" : "Create"} {featureConfig.description.split(" ")[1] || kind}</h3>
+            <h3 style={{ margin: "0 0 4px", fontSize: "18px" }}>{initialData ? "Edit" : "Create"} {kindTitle}</h3>
             <p style={{ margin: 0, fontSize: "12px", color: "var(--muted)" }}>{featureConfig.description}</p>
           </div>
 

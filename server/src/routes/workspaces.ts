@@ -38,7 +38,8 @@ function optionalAuth(req: AuthRequest) {
 router.get("/workspaces", requireAuth, async (req: AuthRequest, res) => {
   const user = await User.findById(req.user!.userId);
   if (!user) return res.status(404).json({ message: "User not found" });
-  return res.json({ memberships: await membershipsFor(user.id), pendingInvitations: await pendingInvitationsFor(user.email), activeOrganizationId: req.user!.organizationId || null });
+  const companyId = req.user!.companyId || (typeof req.query.companyId === "string" ? req.query.companyId : undefined);
+  return res.json({ memberships: await membershipsFor(user.id, companyId), pendingInvitations: await pendingInvitationsFor(user.email, companyId), activeOrganizationId: req.user!.organizationId || null });
 });
 
 router.post("/workspaces", requireAuth, async (req: AuthRequest, res) => {
