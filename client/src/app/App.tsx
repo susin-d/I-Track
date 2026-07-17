@@ -7142,6 +7142,7 @@ function SlaPage({ toast }: { toast: (s: string) => void }) {
 function CyclesLive({ toast }: { toast: (s: string) => void }) {
   const { dashboard, refetch, role } = useWorkspace();
   const [creating, setCreating] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const cycles = dashboard?.cycles || [];
   const sprints = dashboard?.sprints || [];
   const isLeader = ["admin", "manager"].includes(role);
@@ -7171,6 +7172,7 @@ function CyclesLive({ toast }: { toast: (s: string) => void }) {
       });
       form.reset();
       toast("Cycle created");
+      setIsCreateOpen(false);
       await refetch();
     } catch (error) {
       toast(error instanceof Error ? error.message : "Failed to create cycle");
@@ -7192,7 +7194,13 @@ function CyclesLive({ toast }: { toast: (s: string) => void }) {
 
   return (
     <div className="cycles-page">
-      <PageHead title="Cycles" desc="Connect sprints to a shared outcome and track delivery across a longer planning window." />
+      <PageHead title="Cycles" desc="Connect sprints to a shared outcome and track delivery across a longer planning window.">
+        {isLeader && (
+          <button className="btn primary" onClick={() => setIsCreateOpen(true)}>
+            <Icons.Plus /> New cycle
+          </button>
+        )}
+      </PageHead>
 
       <section className="cycle-overview" aria-label="Cycle overview">
         <div className="cycle-overview-intro">
@@ -7220,7 +7228,7 @@ function CyclesLive({ toast }: { toast: (s: string) => void }) {
         </div>
       </section>
 
-      <div className={`cycle-workspace${isLeader ? "" : " cycle-workspace-viewer"}`}>
+      <div className="cycle-workspace cycle-workspace-viewer">
         <section className="cycle-plan-panel">
           <div className="cycle-section-head">
             <div>
@@ -7257,40 +7265,94 @@ function CyclesLive({ toast }: { toast: (s: string) => void }) {
                   </div>
                 </article>
               );
-            }) : <Empty title="No cycles yet" body={isLeader ? "Use the planning panel to create a cycle and connect related sprints." : "No cycles have been created yet."} />}
+            }) : <Empty title="No cycles yet" body={isLeader ? "Click 'New cycle' to create a cycle and connect related sprints." : "No cycles have been created yet."} />}
           </div>
         </section>
+      </div>
 
-        {isLeader && (
-          <aside className="card cycle-create-panel">
-            <div className="cycle-section-head">
-              <div>
-                <span className="cycle-form-kicker"><Icons.Plus /> NEW CYCLE</span>
-                <h2>Plan an outcome</h2>
-                <p>Group related sprints into one delivery window.</p>
+      {isCreateOpen && (
+        <div
+          className="modal-wrap"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !creating) setIsCreateOpen(false);
+          }}
+        >
+          <section
+            className="card invite-review workspace-create-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-cycle-title"
+            style={{ maxWidth: "500px", width: "100%" }}
+          >
+            <button
+              className="icon-btn modal-close"
+              onClick={() => setIsCreateOpen(false)}
+              disabled={creating}
+              aria-label="Close create cycle dialog"
+            >
+              <Icons.X />
+            </button>
+            <Badge tone="purple">NEW CYCLE</Badge>
+            <h2 id="create-cycle-title" style={{ marginTop: "8px" }}>Plan an outcome</h2>
+            <p style={{ color: "var(--muted)", fontSize: "13px", marginBottom: "20px" }}>Group related sprints into one delivery window.</p>
+            <form onSubmit={createCycle} className="cycle-form">
+              <label className="field">
+                <span>Cycle name</span>
+                <input name="name" placeholder="e.g. 2026 Q3 growth" required disabled={creating} />
+              </label>
+              <label className="field">
+                <span>Goal <small>Optional</small></span>
+                <textarea name="goal" placeholder="What outcome should this cycle achieve?" disabled={creating} />
+              </label>
+              <label className="field">
+                <span>Status</span>
+                <select name="status" defaultValue="planned" disabled={creating}>
+                  <option value="planned">Planned</option>
+                  <option value="active">Active</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </label>
+              <div className="cycle-date-fields" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <label className="field">
+                  <span>Starts</span>
+                  <input name="startDate" type="date" required disabled={creating} />
+                </label>
+                <label className="field">
+                  <span>Ends</span>
+                  <input name="endDate" type="date" required disabled={creating} />
+                </label>
               </div>
-            </div>
-            <form className="cycle-form" onSubmit={createCycle}>
-              <label className="field"><span>Cycle name</span><input name="name" placeholder="e.g. 2026 Q3 growth" required /></label>
-              <label className="field"><span>Goal <small>Optional</small></span><textarea name="goal" placeholder="What outcome should this cycle achieve?" /></label>
-              <label className="field"><span>Status</span><select name="status" defaultValue="planned"><option value="planned">Planned</option><option value="active">Active</option><option value="completed">Completed</option></select></label>
-              <div className="cycle-date-fields">
-                <label className="field"><span>Starts</span><input name="startDate" type="date" required /></label>
-                <label className="field"><span>Ends</span><input name="endDate" type="date" required /></label>
-              </div>
-              <div className="field">
+              <div className="field" style={{ marginBottom: "20px" }}>
                 <span>Sprints <small>{sprints.length} available</small></span>
-                <div className="check-list cycle-sprint-list">
-                  {sprints.length ? sprints.map((sprint: any) => (
-                    <label key={sprint._id}><input type="checkbox" name="sprints" value={sprint._id} /><span>{sprint.name}<small>{sprint.status ? fmt(sprint.status) : "Planned sprint"}</small></span></label>
-                  )) : <p>No sprints are available yet.</p>}
+                <div className="check-list cycle-sprint-list" style={{ maxHeight: "150px", overflowY: "auto" }}>
+                  {sprints.length ? (
+                    sprints.map((sprint: any) => (
+                      <label key={sprint._id} style={{ display: "flex", alignItems: "center", gap: "8px", margin: "6px 0" }}>
+                        <input type="checkbox" name="sprints" value={sprint._id} disabled={creating} />
+                        <span>
+                          {sprint.name}
+                          <small style={{ display: "block", color: "var(--muted)" }}>{sprint.status ? fmt(sprint.status) : "Planned sprint"}</small>
+                        </span>
+                      </label>
+                    ))
+                  ) : (
+                    <p>No sprints are available yet.</p>
+                  )}
                 </div>
               </div>
-              <button className="btn primary cycle-submit" disabled={creating}><Icons.Plus />{creating ? "Creating cycle..." : "Create cycle"}</button>
+              <div className="form-actions">
+                <button className="btn" type="button" onClick={() => setIsCreateOpen(false)} disabled={creating}>
+                  Cancel
+                </button>
+                <button className="btn primary" type="submit" disabled={creating}>
+                  {creating ? "Creating..." : "Create cycle"}
+                </button>
+              </div>
             </form>
-          </aside>
-        )}
-      </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
