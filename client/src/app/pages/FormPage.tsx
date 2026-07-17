@@ -71,6 +71,9 @@ export function FormPage({
   const [ticketLabels, setTicketLabels] = useState<string[]>([]);
   const [inviteUrl, setInviteUrl] = useState("");
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [projectKey, setProjectKey] = useState("");
+  const [keyEdited, setKeyEdited] = useState(false);
+  const [keyError, setKeyError] = useState("");
   const canCreate =
     type === "invite"
       ? role === "admin"
@@ -111,12 +114,19 @@ export function FormPage({
     setFormError("");
     const values = new FormData(event.currentTarget);
     try {
-      if (type === "project")
+      if (type === "project") {
+        const existingKeys = (dashboard?.projects || []).map((p: any) => p.key?.toUpperCase());
+        const submittedKey = (values.get("key") as string || "").toUpperCase();
+        if (existingKeys.includes(submittedKey)) {
+          setKeyError(`Key "${submittedKey}" is already in use. Choose a different key.`);
+          setBusy(false);
+          return;
+        }
         await api("/projects", {
           method: "POST",
           body: JSON.stringify({
             name: values.get("name"),
-            key: values.get("key"),
+            key: submittedKey,
             status: values.get("status"),
             description: values.get("description"),
             progress: 0,
@@ -125,6 +135,7 @@ export function FormPage({
             members: [],
           }),
         });
+      }
       if (type === "sprint")
         await api("/sprints", {
           method: "POST",
@@ -290,11 +301,53 @@ export function FormPage({
           <div className="form-grid">
             <label className="field full">
               <span>Project name</span>
-              <input name="name" placeholder="e.g. Mobile application" autoFocus required />
+              <input
+                name="name"
+                placeholder="e.g. Mobile application"
+                autoFocus
+                required
+                onChange={(e) => {
+                  if (!keyEdited) {
+                    const existingKeys = (dashboard?.projects || []).map((p: any) => p.key?.toUpperCase());
+                    const words = e.target.value.trim().toUpperCase().replace(/[^A-Z0-9\s]/g, "").split(/\s+/).filter(Boolean);
+                    let base = words.length >= 2
+                      ? words.map((w: string) => w[0]).join("").slice(0, 6)
+                      : (words[0] || "").slice(0, 6);
+                    if (base.length < 2) base = base.padEnd(2, "X");
+                    // Ensure uniqueness by appending a number if needed
+                    let candidate = base;
+                    let counter = 2;
+                    while (existingKeys.includes(candidate)) {
+                      candidate = base.slice(0, 5) + counter;
+                      counter++;
+                    }
+                    setProjectKey(candidate);
+                    setKeyError("");
+                  }
+                }}
+              />
             </label>
             <label className="field">
               <span>Project key</span>
-              <input name="key" placeholder="MOB" maxLength={6} required />
+              <input
+                name="key"
+                placeholder="MOB"
+                maxLength={6}
+                required
+                value={projectKey}
+                onChange={(e) => {
+                  const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+                  setProjectKey(val);
+                  setKeyEdited(true);
+                  const existingKeys = (dashboard?.projects || []).map((p: any) => p.key?.toUpperCase());
+                  if (existingKeys.includes(val)) {
+                    setKeyError(`Key "${val}" is already in use. Choose a different key.`);
+                  } else {
+                    setKeyError("");
+                  }
+                }}
+              />
+              {keyError && <small style={{ color: "var(--danger, #e53e3e)" }}>{keyError}</small>}
             </label>
             <label className="field">
               <span>Status</span>

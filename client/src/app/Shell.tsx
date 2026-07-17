@@ -194,7 +194,7 @@ export function Shell({
           <div className="company-context-wrap">
             <button className="company-context" onClick={() => { setWorkspaceMenu(false); setCompanyMenu(!companyMenu); }} aria-haspopup="menu" aria-expanded={companyMenu}>
               <span className="avatar">{(company?.name || organization?.name || "O").slice(0, 2).toUpperCase()}</span>
-              <span><small>ORGANIZATION</small><b>{company?.name || organization?.name || "Organization"}</b></span>
+              <span><b>{company?.name || organization?.name || "Organization"}</b></span>
               <Icons.ChevronsUpDown size={14} />
             </button>
             {companyMenu && (

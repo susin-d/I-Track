@@ -249,8 +249,8 @@ export function DashboardLive() {
             title="Sprint Status Breakdown"
             sub={active ? `${active.name} Story Points` : "All Tickets Breakdown"}
           />
-          <div className="chart" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '240px' }}>
-            <ResponsiveContainer width="100%" height="70%">
+          <div className="chart">
+            <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie
                   data={statusData}
@@ -268,15 +268,15 @@ export function DashboardLive() {
                 <Tooltip content={<CustomTooltip />} />
               </PieChart>
             </ResponsiveContainer>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: '11px', width: '100%', padding: '0 10px' }}>
-              {statusData.map((entry) => (
-                <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: statusColors[entry.name] }}></span>
-                  <span style={{ color: 'var(--muted)' }}>{entry.name}</span>
-                  <span style={{ marginLeft: 'auto', fontWeight: 600 }}>{entry.value}</span>
-                </div>
-              ))}
-            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: '11px', padding: '0 4px', marginTop: '8px' }}>
+            {statusData.map((entry) => (
+              <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0, backgroundColor: statusColors[entry.name] }}></span>
+                <span style={{ color: 'var(--muted)' }}>{entry.name}</span>
+                <span style={{ marginLeft: 'auto', fontWeight: 600 }}>{entry.value}</span>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -298,8 +298,8 @@ export function DashboardLive() {
 
         <section className="card span-4">
           <CardTitle title="Priority Distribution" sub="Workspace ticket priority volumes" />
-          <div className="chart" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '240px' }}>
-            <ResponsiveContainer width="100%" height="70%">
+          <div className="chart">
+            <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie
                   data={priorityData}
@@ -317,15 +317,15 @@ export function DashboardLive() {
                 <Tooltip content={<CustomTooltip />} />
               </PieChart>
             </ResponsiveContainer>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: '11px', width: '100%', padding: '0 10px' }}>
-              {priorityData.map((entry) => (
-                <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: priorityColors[entry.name] }}></span>
-                  <span style={{ color: 'var(--muted)' }}>{entry.name}</span>
-                  <span style={{ marginLeft: 'auto', fontWeight: 600 }}>{entry.value}</span>
-                </div>
-              ))}
-            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: '11px', padding: '0 4px', marginTop: '8px' }}>
+            {priorityData.map((entry) => (
+              <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0, backgroundColor: priorityColors[entry.name] }}></span>
+                <span style={{ color: 'var(--muted)' }}>{entry.name}</span>
+                <span style={{ marginLeft: 'auto', fontWeight: 600 }}>{entry.value}</span>
+              </div>
+            ))}
           </div>
         </section>
 
