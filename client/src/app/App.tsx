@@ -316,7 +316,7 @@ function Shell({
         aria-label="Workspace navigation"
       >
         <div className="brand">
-        <div className="brand-mark"><img src="/logo-mark-soft-purple.png" alt="" /></div>
+          <div className="brand-mark"><img src="/logo-mark-soft-purple.png" alt="" /></div>
           <span>I-TRACK</span>
           <button
             className="icon-btn collapse"
@@ -324,17 +324,7 @@ function Shell({
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            <Icons.PanelLeftClose size={19} />
-          </button>
-          <button
-            className="icon-btn mobile-sidebar-close"
-            onClick={() => {
-              setMobile(false);
-              mobileMenuButton.current?.focus();
-            }}
-            aria-label="Close navigation"
-          >
-            <Icons.X size={19} />
+            {collapsed ? <Icons.PanelLeftOpen size={19} /> : <Icons.PanelLeftClose size={19} />}
           </button>
         </div>
         <div className="company-context-wrap">
