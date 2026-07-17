@@ -462,8 +462,15 @@ router.route("/team")
     const body = parseOr400(teamSchema, req.body, res);
     if (!body) return;
     if (!(await WorkspaceRole.exists({ organization: orgId(req), slug: body.role }))) return res.status(400).json({ message: "Role does not exist in this workspace" });
-    const passwordHash = "invited-user-no-password-yet";
-    const user = await User.create({ name: body.name, email: body.email, avatarColor: body.avatarColor, passwordHash });
+    const email = body.email.toLowerCase();
+    let user = await User.findOne({ email });
+    if (user && await OrganizationMembership.exists({ user: user._id, organization: orgId(req) })) {
+      return res.status(409).json({ message: "This user already belongs to the workspace" });
+    }
+    if (!user) {
+      const passwordHash = "invited-user-no-password-yet";
+      user = await User.create({ name: body.name, email, avatarColor: body.avatarColor, passwordHash });
+    }
     const membership = await OrganizationMembership.create({ user: user._id, organization: orgId(req), role: body.role, status: "disabled", skills: body.skills, availability: body.availability, capacity: body.capacity });
     return res.status(201).json({ user: { ...user.toObject(), passwordHash: undefined, role: membership.role, inviteStatus: "invited", skills: membership.skills, availability: membership.availability, capacity: membership.capacity } });
   });

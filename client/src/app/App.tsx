@@ -30,6 +30,15 @@ import { resourceKinds } from "../constants/resources";
 import type { NotificationPreferences, Role, Ticket, TicketStatus, Toast } from "../types/domain";
 import { ApiGate, useWorkspace } from "./workspace";
 import { nav } from "./navigation";
+import { WorkflowVisualEditor } from "./components/WorkflowVisualEditor";
+import {
+  ALL_RESOURCE_FEATURE_CONFIG,
+  RESOURCE_CATEGORIES,
+  RESOURCE_ICONS,
+  ResourceVisualModal,
+  ResourceVisualPreview,
+  ResourceKind,
+} from "./components/ResourceVisualBuilder";
 import {
   Avatar,
   Badge,
@@ -4209,6 +4218,11 @@ function RolesSettings({ toast }: { toast: (s: string) => void }) {
   const selectedRole = roles.find((item) => String(item.id || item._id) === String(selectedRoleId));
   const isAdministrator = !isNew && selectedRole?.slug === "admin";
 
+  const rolePermissionColumns = [
+    [rolePermissionGroups[0], rolePermissionGroups[3], rolePermissionGroups[4]], // Workspace (4), Tickets (4), Planning and resources (4) = 12 items
+    [rolePermissionGroups[1], rolePermissionGroups[2], rolePermissionGroups[5]], // Team (2), Projects (2), Operations (10) = 14 items
+  ];
+
   return (
     <div className="roles-settings-grid">
       <section className="card roles-list-card">
@@ -4237,14 +4251,18 @@ function RolesSettings({ toast }: { toast: (s: string) => void }) {
             </label>
           </div>
           <div className="role-permission-groups">
-            {rolePermissionGroups.map((group) => (
-              <div className="role-permission-group" key={group.label}>
-                <h3>{group.label}</h3>
-                {group.permissions.map(([permission, label]) => (
-                  <label className="role-permission-row" key={permission}>
-                    <input type="checkbox" checked={isAdministrator || draftPermissions.includes(permission)} onChange={() => togglePermission(permission)} disabled={isAdministrator} />
-                    <span><b>{label}</b><small>{permission}</small></span>
-                  </label>
+            {rolePermissionColumns.map((col, idx) => (
+              <div className="role-permission-col" key={idx}>
+                {col.map((group) => (
+                  <div className="role-permission-group" key={group.label}>
+                    <h3>{group.label}</h3>
+                    {group.permissions.map(([permission, label]) => (
+                      <label className="role-permission-row" key={permission}>
+                        <input type="checkbox" checked={isAdministrator || draftPermissions.includes(permission)} onChange={() => togglePermission(permission)} disabled={isAdministrator} />
+                        <span><b>{label}</b><small>{permission}</small></span>
+                      </label>
+                    ))}
+                  </div>
                 ))}
               </div>
             ))}
@@ -6914,101 +6932,29 @@ function SprintsLive({
   );
 }
 
-const resourceFeatureConfig: Record<string, {
-  description: string;
-  fields: { key: string; label: string; initial?: string }[];
-}> = {
-  release: {
-    description: "Plan versions, release dates, ownership, and delivery progress.",
-    fields: [
-      { key: "version", label: "Version", initial: "1.0.0" },
-      { key: "startDate", label: "Start date (YYYY-MM-DD)" },
-      { key: "releaseDate", label: "Release date (YYYY-MM-DD)" },
-      { key: "owner", label: "Release owner" },
-      { key: "progress", label: "Progress percentage", initial: "0" },
-    ],
-  },
-  epic: {
-    description: "Sequence epics on a delivery timeline with owners and progress.",
-    fields: [
-      { key: "startDate", label: "Start date (YYYY-MM-DD)" },
-      { key: "endDate", label: "End date (YYYY-MM-DD)" },
-      { key: "owner", label: "Epic owner" },
-      { key: "progress", label: "Progress percentage", initial: "0" },
-    ],
-  },
-  workflow: {
-    description: "Define workflow statuses and allowed transitions.",
-    fields: [
-      { key: "statuses", label: "Statuses (comma separated)", initial: "Backlog, To Do, In Progress, In Review, Done" },
-      { key: "transitions", label: "Transitions (comma separated, e.g. To Do > In Progress)" },
-    ],
-  },
-  "permission-scheme": {
-    description: "Configure scoped roles and the actions they may perform.",
-    fields: [
-      { key: "roles", label: "Roles in this scheme (comma separated)", initial: "admin, manager, engineer, designer" },
-      { key: "permissions", label: "Permissions (comma separated)", initial: "browse, create, edit, transition, comment" },
-      { key: "scope", label: "Scope", initial: "workspace" },
-    ],
-  },
-  "automation-rule": {
-    description: "Define event-driven rules for routine ticket operations.",
-    fields: [
-      { key: "trigger", label: "Trigger", initial: "ticket.status.changed" },
-      { key: "condition", label: "Condition", initial: "status = Done" },
-      { key: "action", label: "Action", initial: "notify watchers" },
-    ],
-  },
-  "notification-rule": {
-    description: "Route workspace events to selected audiences and channels.",
-    fields: [
-      { key: "event", label: "Event", initial: "ticket.assigned" },
-      { key: "channel", label: "Channel", initial: "in-app" },
-      { key: "recipients", label: "Recipients", initial: "assignee" },
-    ],
-  },
-  "saved-filter": {
-    description: "Save a ticket search as a reusable, shared queue.",
-    fields: [
-      { key: "query", label: "Search text" },
-      { key: "label", label: "Label" },
-      { key: "filter", label: "State (open or all)", initial: "open" },
-      { key: "sort", label: "Sort (asc or desc)", initial: "asc" },
-      { key: "shared", label: "Shared with workspace (yes or no)", initial: "yes" },
-    ],
-  },
-};
-
-const resourceIcons: Record<string, React.ComponentType<any>> = {
-  epic: Icons.Map,
-  label: Icons.Tags,
-  component: Icons.Boxes,
-  release: Icons.Rocket,
-  "issue-type": Icons.TicketCheck,
-  priority: Icons.Signal,
-  workflow: Icons.GitBranch,
-  "custom-field": Icons.Braces,
-  template: Icons.LayoutTemplate,
-  board: Icons.Columns3,
-  milestone: Icons.Flag,
-  "automation-rule": Icons.Zap,
-  "notification-rule": Icons.BellRing,
-  "permission-scheme": Icons.KeyRound,
-  "saved-filter": Icons.ListFilter,
-};
+const resourceFeatureConfig = ALL_RESOURCE_FEATURE_CONFIG;
+const resourceIcons = RESOURCE_ICONS;
 
 async function collectResourceDefinition(kind: string, current?: any) {
+  const feat = ALL_RESOURCE_FEATURE_CONFIG[kind as ResourceKind];
   const fields = [
     { name: "name", label: `${current ? "Name" : "Name for"} ${fmt(kind)}`, defaultValue: current?.name || "", required: true },
     { name: "description", label: "Description", type: "textarea" as const, defaultValue: current?.description || "" },
     { name: "key", label: "Key (optional)", defaultValue: current?.key || "" },
-    ...(resourceFeatureConfig[kind]?.fields || []).map((field) => ({
-      name: field.key,
-      label: field.label,
-      defaultValue: String(current?.config?.[field.key] ?? field.initial ?? ""),
-      type: field.key.toLowerCase().includes("date") ? "date" as const : field.key === "progress" ? "number" as const : "text" as const,
-    })),
+    ...(feat?.fields || []).map((field) => {
+      const defaultValue = String(current?.config?.[field.key] ?? field.initial ?? "");
+      let options = field.options;
+      if (options && defaultValue && !options.some((opt) => opt.value === defaultValue)) {
+        options = [{ label: defaultValue, value: defaultValue }, ...options];
+      }
+      return {
+        name: field.key,
+        label: field.label,
+        defaultValue,
+        type: field.type === "textarea" ? ("textarea" as const) : field.type === "select" ? ("select" as const) : field.key.toLowerCase().includes("date") ? ("date" as const) : field.key === "progress" ? ("number" as const) : ("text" as const),
+        options,
+      };
+    }),
   ];
   const values = await appForm({
     title: `${current ? "Edit" : "Create"} ${fmt(kind)}`,
@@ -7017,7 +6963,7 @@ async function collectResourceDefinition(kind: string, current?: any) {
   });
   if (!values?.name?.trim()) return null;
   const config = { ...(current?.config || {}) };
-  for (const field of resourceFeatureConfig[kind]?.fields || []) {
+  for (const field of feat?.fields || []) {
     config[field.key] = String(values[field.key] ?? "").trim();
   }
   return { name: values.name.trim(), description: values.description?.trim() || "", key: values.key?.trim() || undefined, status: current?.status || "active", order: current?.order || 0, config };
@@ -7028,9 +6974,53 @@ function ResourcesLive({ toast }: { toast: (s: string) => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const kind = location.pathname.split("/")[2];
+  const kind = location.pathname.split("/")[2] as ResourceKind | undefined;
+
+  const [workflowViewMode, setWorkflowViewMode] = useState<"visual" | "table">("visual");
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+  const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [searchFilter, setSearchFilter] = useState<string>("");
+
+  const [visualModalKind, setVisualModalKind] = useState<ResourceKind | null>(null);
+  const [editingItem, setEditingItem] = useState<any | null>(null);
 
   const isLeader = ["admin", "manager"].includes(role);
+
+  const handleSaveResource = async (data: { name: string; description: string; key?: string; config: Record<string, string> }) => {
+    if (!visualModalKind) return;
+    try {
+      if (editingItem?._id) {
+        await mutate(() =>
+          api(`/resources/${visualModalKind}/${editingItem._id}`, {
+            method: "PATCH",
+            body: JSON.stringify({
+              ...data,
+              status: editingItem.status || "active",
+              order: editingItem.order || 0,
+            }),
+          })
+        );
+        toast(`${fmt(visualModalKind)} updated`);
+      } else {
+        const currentRows = resources[visualModalKind] || [];
+        await mutate(() =>
+          api(`/resources/${visualModalKind}`, {
+            method: "POST",
+            body: JSON.stringify({
+              ...data,
+              status: "active",
+              order: currentRows.length,
+            }),
+          })
+        );
+        toast(`${fmt(visualModalKind)} created`);
+      }
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Save failed");
+      throw err;
+    }
+  };
 
   if (kind) {
     const rawRows = resources[kind] || [];
@@ -7038,7 +7028,6 @@ function ResourcesLive({ toast }: { toast: (s: string) => void }) {
     const filter = params.get("filter") || "";
     const sort = params.get("sort") || "";
 
-    // Filter
     const filtered = rawRows.filter((item: any) => {
       const matchesQ = q
         ? item.name.toLowerCase().includes(q.toLowerCase()) ||
@@ -7048,7 +7037,6 @@ function ResourcesLive({ toast }: { toast: (s: string) => void }) {
       return matchesQ && matchesFilter;
     });
 
-    // Sort
     const rows = sort
       ? [...filtered].sort((a: any, b: any) => {
           const valA = a.name.toLowerCase();
@@ -7061,39 +7049,14 @@ function ResourcesLive({ toast }: { toast: (s: string) => void }) {
         })
       : filtered;
 
-    const create = async () => {
-      const definition = await collectResourceDefinition(kind);
-      if (!definition) return;
-      try {
-        await mutate(() =>
-          api(`/resources/${kind}`, {
-            method: "POST",
-            body: JSON.stringify({
-              ...definition,
-              order: rows.length,
-            }),
-          }),
-        );
-        toast(`${fmt(kind)} created`);
-      } catch (err) {
-        toast(err instanceof Error ? err.message : "Creation failed");
-      }
+    const openCreateModal = () => {
+      setEditingItem(null);
+      setVisualModalKind(kind);
     };
 
-    const edit = async (item: any) => {
-      const definition = await collectResourceDefinition(kind, item);
-      if (!definition) return;
-      try {
-        await mutate(() =>
-          api(`/resources/${kind}/${item._id}`, {
-            method: "PATCH",
-            body: JSON.stringify(definition),
-          }),
-        );
-        toast(`${fmt(kind)} updated`);
-      } catch (err) {
-        toast(err instanceof Error ? err.message : "Update failed");
-      }
+    const openEditModal = (item: any) => {
+      setEditingItem(item);
+      setVisualModalKind(kind);
     };
 
     const openSavedQueue = (item: any) => {
@@ -7121,20 +7084,133 @@ function ResourcesLive({ toast }: { toast: (s: string) => void }) {
       }
     };
 
+    const handleSaveWorkflowVisual = async (workflowData: any, targetId?: string) => {
+      try {
+        if (targetId) {
+          await mutate(() =>
+            api(`/resources/workflow/${targetId}`, {
+              method: "PATCH",
+              body: JSON.stringify(workflowData),
+            })
+          );
+          toast("Workflow updated successfully");
+        } else {
+          await mutate(() =>
+            api(`/resources/workflow`, {
+              method: "POST",
+              body: JSON.stringify({
+                ...workflowData,
+                status: "active",
+                order: rows.length,
+              }),
+            })
+          );
+          toast("Workflow created successfully");
+        }
+      } catch (err) {
+        toast(err instanceof Error ? err.message : "Failed to save workflow");
+        throw err;
+      }
+    };
+
+    if (kind === "workflow" && workflowViewMode === "visual") {
+      const activeWorkflow = rows.find((r: any) => r._id === selectedWorkflowId) || rows[0];
+
+      return (
+        <div className="workflow-page-view">
+          <PageHead
+            title="Interactive Visual Workflow Builder"
+            desc="Drag and drop status nodes, connect transitions, and define ticket workflows visually."
+          >
+            <div className="flex gap">
+              <button
+                className="btn primary"
+                onClick={() => setWorkflowViewMode("visual")}
+              >
+                <Icons.GitBranch className="w-4 h-4" /> Visual Canvas
+              </button>
+              <button
+                className="btn outline"
+                onClick={() => setWorkflowViewMode("table")}
+              >
+                <Icons.Table className="w-4 h-4" /> Table View
+              </button>
+              {isLeader && (
+                <button
+                  className="btn outline"
+                  onClick={() => {
+                    setSelectedWorkflowId("NEW");
+                  }}
+                >
+                  <Icons.Plus className="w-4 h-4" /> Create New Scheme
+                </button>
+              )}
+            </div>
+          </PageHead>
+
+          {rows.length > 0 && selectedWorkflowId !== "NEW" && (
+            <div className="workflow-tab-selector flex gap margin-bottom">
+              {rows.map((w: any) => (
+                <button
+                  key={w._id}
+                  className={`btn sm ${ (activeWorkflow?._id === w._id && selectedWorkflowId !== "NEW") ? "primary" : "ghost"}`}
+                  onClick={() => setSelectedWorkflowId(w._id)}
+                >
+                  <Icons.Workflow className="w-3.5 h-3.5" />
+                  {w.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <WorkflowVisualEditor
+            key={selectedWorkflowId || activeWorkflow?._id || "default"}
+            workflow={selectedWorkflowId === "NEW" ? undefined : activeWorkflow}
+            isLeader={isLeader}
+            onSave={(data) => handleSaveWorkflowVisual(data, selectedWorkflowId === "NEW" ? undefined : activeWorkflow?._id)}
+            onCancel={selectedWorkflowId === "NEW" ? () => setSelectedWorkflowId(null) : undefined}
+          />
+        </div>
+      );
+    }
+
     return (
       <>
         <PageHead
           title={fmt(kind)}
-          desc={resourceFeatureConfig[kind]?.description || `Manage live ${fmt(kind).toLowerCase()} definitions.`}
+          desc={ALL_RESOURCE_FEATURE_CONFIG[kind]?.description || `Manage live ${fmt(kind).toLowerCase()} definitions.`}
         >
-          {isLeader && (
-            <button className="btn primary" onClick={create}>
-              <Icons.Plus />
-              New {fmt(kind)}
+          <div className="flex gap">
+            <button
+              className={`btn ${viewMode === "grid" ? "primary" : "outline"}`}
+              onClick={() => setViewMode("grid")}
+            >
+              <Icons.LayoutGrid className="w-4 h-4" /> Cards View
             </button>
-          )}
+            <button
+              className={`btn ${viewMode === "table" ? "primary" : "outline"}`}
+              onClick={() => setViewMode("table")}
+            >
+              <Icons.Table className="w-4 h-4" /> Table View
+            </button>
+            {kind === "workflow" && (
+              <button
+                className="btn outline"
+                onClick={() => setWorkflowViewMode("visual")}
+              >
+                <Icons.GitBranch className="w-4 h-4" /> Visual Canvas
+              </button>
+            )}
+            {isLeader && (
+              <button className="btn primary" onClick={openCreateModal}>
+                <Icons.Plus />
+                New {fmt(kind)}
+              </button>
+            )}
+          </div>
         </PageHead>
         <FilterBar />
+
         {(kind === "epic" || kind === "release") && rows.length > 0 && (
           <section className="card resource-plan">
             <CardTitle
@@ -7159,88 +7235,230 @@ function ResourcesLive({ toast }: { toast: (s: string) => void }) {
             </div>
           </section>
         )}
-        <section className="card no-pad">
-          {rows.length ? (
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Status</th>
-                  <th>Key</th>
-                  <th>Configuration</th>
-                  <th>Updated</th>
-                  {(isLeader || kind === "saved-filter") && <th>Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((item: any) => (
-                  <tr key={item._id}>
-                    <td>
-                      <b>{item.name}</b>
-                    </td>
-                    <td>
-                      <Badge tone="green">{item.status}</Badge>
-                    </td>
-                    <td>{item.key || "—"}</td>
-                    <td>
-                      <div className="resource-config-summary">
-                        {Object.entries(item.config || {}).slice(0, 4).map(([key, value]) => (
-                          value ? <span key={key}><small>{fmt(key)}</small><b>{String(value)}</b></span> : null
-                        ))}
-                        {!Object.values(item.config || {}).some(Boolean) && <span>Default configuration</span>}
-                      </div>
-                    </td>
-                    <td>{new Date(item.updatedAt).toLocaleString()}</td>
-                    {(isLeader || kind === "saved-filter") && (
+
+        {viewMode === "grid" ? (
+          rows.length ? (
+            <div className="resource-visual-items-grid" style={{ marginTop: "16px" }}>
+              {rows.map((item: any) => (
+                <div key={item._id} className="resource-visual-item-card">
+                  <ResourceVisualPreview kind={kind} item={item} />
+                  <div className="resource-item-actions">
+                    {kind === "saved-filter" && (
+                      <button className="btn text-btn sm" onClick={() => openSavedQueue(item)}>
+                        Open queue
+                      </button>
+                    )}
+                    {isLeader && (
+                      <>
+                        <button className="btn text-btn sm" onClick={() => openEditModal(item)}>
+                          Edit
+                        </button>
+                        <button className="btn text-btn sm danger" onClick={() => remove(item)}>
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Empty title={`No ${fmt(kind).toLowerCase()}`} />
+          )
+        ) : (
+          <section className="card no-pad">
+            {rows.length ? (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Key</th>
+                    <th>Configuration</th>
+                    <th>Updated</th>
+                    {(isLeader || kind === "saved-filter" || kind === "workflow") && <th>Actions</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((item: any) => (
+                    <tr key={item._id}>
                       <td>
-                        <div style={{ display: "flex", gap: "10px" }}>
-                          {isLeader && (
-                            <>
-                              <button
-                                className="btn text-btn"
-                                onClick={() => edit(item)}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                className="btn text-btn danger"
-                                onClick={() => remove(item)}
-                              >
-                                Delete
-                              </button>
-                            </>
-                          )}
-                          {kind === "saved-filter" && (
-                            <button className="btn text-btn" onClick={() => openSavedQueue(item)}>
-                              Open queue
-                            </button>
-                          )}
+                        <b>{item.name}</b>
+                      </td>
+                      <td>
+                        <Badge tone="green">{item.status}</Badge>
+                      </td>
+                      <td>{item.key || "—"}</td>
+                      <td>
+                        <div className="resource-config-summary">
+                          {Object.entries(item.config || {}).slice(0, 4).map(([k, value]) => (
+                            value ? <span key={k}><small>{fmt(k)}</small><b>{String(value)}</b></span> : null
+                          ))}
+                          {!Object.values(item.config || {}).some(Boolean) && <span>Default configuration</span>}
                         </div>
                       </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <Empty
-              title={`No ${fmt(kind).toLowerCase()}`}
-            />
-          )}
-        </section>
+                      <td>{new Date(item.updatedAt).toLocaleString()}</td>
+                      {(isLeader || kind === "saved-filter" || kind === "workflow") && (
+                        <td>
+                          <div style={{ display: "flex", gap: "10px" }}>
+                            {kind === "workflow" && (
+                              <button
+                                className="btn text-btn primary"
+                                onClick={() => {
+                                  setSelectedWorkflowId(item._id);
+                                  setWorkflowViewMode("visual");
+                                }}
+                              >
+                                Open Canvas
+                              </button>
+                            )}
+                            {isLeader && (
+                              <>
+                                <button className="btn text-btn" onClick={() => openEditModal(item)}>
+                                  Edit
+                                </button>
+                                <button className="btn text-btn danger" onClick={() => remove(item)}>
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                            {kind === "saved-filter" && (
+                              <button className="btn text-btn" onClick={() => openSavedQueue(item)}>
+                                Open queue
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <Empty title={`No ${fmt(kind).toLowerCase()}`} />
+            )}
+          </section>
+        )}
+
+        {visualModalKind && (
+          <ResourceVisualModal
+            kind={visualModalKind}
+            initialData={editingItem}
+            onSave={handleSaveResource}
+            onClose={() => setVisualModalKind(null)}
+          />
+        )}
       </>
     );
   }
+
+  // Workspace Resources Overview Hub
+  const totalResourceCount = resourceKinds.reduce((acc, k) => acc + (resources[k] || []).length, 0);
+
+  const getCategoryCount = (kinds: string[]) => {
+    return kinds.reduce((acc, k) => acc + (resources[k] || []).length, 0);
+  };
+
+  const filteredResourceKinds = resourceKinds.filter((k) => {
+    const feat = ALL_RESOURCE_FEATURE_CONFIG[k as ResourceKind];
+    const categoryMatch =
+      activeCategory === "all" ||
+      (activeCategory === "planning" && feat?.category === "planning") ||
+      (activeCategory === "attributes" && feat?.category === "attributes") ||
+      (activeCategory === "governance" && feat?.category === "governance") ||
+      (activeCategory === "automation" && feat?.category === "automation");
+
+    const searchMatch = !searchFilter.trim() || fmt(k).toLowerCase().includes(searchFilter.toLowerCase()) || feat?.description.toLowerCase().includes(searchFilter.toLowerCase());
+
+    return categoryMatch && searchMatch;
+  });
 
   return (
     <>
       <PageHead
         title="Workspace resources"
-        desc="Live reusable workspace configuration."
+        desc="Live reusable workspace configuration and visual feature definitions."
       />
+
+      {/* Visual Statistics Header */}
+      <div className="resource-stats-banner">
+        <div className="resource-stat-card">
+          <div className="resource-stat-icon" style={{ background: "rgba(139, 92, 246, 0.12)", color: "#8b5cf6" }}>
+            <Icons.Layers3 />
+          </div>
+          <div className="resource-stat-info">
+            <h3>{totalResourceCount}</h3>
+            <p>Total Workspace Configs</p>
+          </div>
+        </div>
+
+        <div className="resource-stat-card">
+          <div className="resource-stat-icon" style={{ background: "rgba(59, 130, 246, 0.12)", color: "#3b82f6" }}>
+            <Icons.Rocket />
+          </div>
+          <div className="resource-stat-info">
+            <h3>{getCategoryCount(["epic", "release", "board", "milestone"])}</h3>
+            <p>Planning & Delivery</p>
+          </div>
+        </div>
+
+        <div className="resource-stat-card">
+          <div className="resource-stat-icon" style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10b981" }}>
+            <Icons.Tags />
+          </div>
+          <div className="resource-stat-info">
+            <h3>{getCategoryCount(["label", "component", "issue-type", "priority", "custom-field", "template"])}</h3>
+            <p>Ticket Attributes</p>
+          </div>
+        </div>
+
+        <div className="resource-stat-card">
+          <div className="resource-stat-icon" style={{ background: "rgba(245, 158, 11, 0.12)", color: "#f59e0b" }}>
+            <Icons.Zap />
+          </div>
+          <div className="resource-stat-info">
+            <h3>{getCategoryCount(["workflow", "automation-rule", "notification-rule", "permission-scheme", "saved-filter"])}</h3>
+            <p>Automation & Rules</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Category Tabs & Search Bar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", marginBottom: "16px" }}>
+        <div className="resource-category-tabs" style={{ margin: 0, padding: 0, border: "none" }}>
+          {RESOURCE_CATEGORIES.map((cat) => {
+            const count = cat.id === "all" ? 15 : cat.kinds?.length || 0;
+            return (
+              <button
+                key={cat.id}
+                className={`resource-tab-btn ${activeCategory === cat.id ? "active" : ""}`}
+                onClick={() => setActiveCategory(cat.id)}
+              >
+                {cat.label}
+                <span className="resource-tab-badge">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ position: "relative", width: "240px" }}>
+          <Icons.Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--muted)" }} />
+          <input
+            type="text"
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            placeholder="Filter features..."
+            style={{ width: "100%", paddingLeft: "30px", paddingRight: "10px", height: "32px", fontSize: "12px", borderRadius: "16px", border: "1px solid var(--border)", background: "var(--surface)" }}
+          />
+        </div>
+      </div>
+
       <div className="resource-grid">
-        {resourceKinds.map((resourceKind) => {
-          const Icon = resourceIcons[resourceKind] || Icons.Layers3;
+        {filteredResourceKinds.map((resourceKind) => {
+          const feat = ALL_RESOURCE_FEATURE_CONFIG[resourceKind as ResourceKind];
+          const Icon = resourceIcons[resourceKind as ResourceKind] || Icons.Layers3;
+          const items = resources[resourceKind] || [];
+
           return (
             <article
               className="card resource-card"
@@ -7252,14 +7470,45 @@ function ResourcesLive({ toast }: { toast: (s: string) => void }) {
               </span>
               <div>
                 <h2>{fmt(resourceKind)}</h2>
-                <p>Manage {fmt(resourceKind).toLowerCase()} definitions.</p>
+                <p>{feat?.description || `Manage ${fmt(resourceKind).toLowerCase()} definitions.`}</p>
+                <div style={{ display: "flex", gap: "4px", marginTop: "6px" }}>
+                  {feat?.presets.slice(0, 2).map((p) => (
+                    <span key={p.name} className="rv-pill gray" style={{ fontSize: "9px", padding: "1px 5px" }}>
+                      {p.name.split(" ")[0]}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <Badge>{(resources[resourceKind] || []).length}</Badge>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+                <Badge tone={items.length > 0 ? "purple" : "gray"}>{items.length}</Badge>
+                {isLeader && (
+                  <button
+                    className="btn sm outline"
+                    style={{ fontSize: "10px", padding: "2px 8px" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingItem(null);
+                      setVisualModalKind(resourceKind as ResourceKind);
+                    }}
+                  >
+                    + Create
+                  </button>
+                )}
+              </div>
               <Icons.ChevronRight />
             </article>
           );
         })}
       </div>
+
+      {visualModalKind && (
+        <ResourceVisualModal
+          kind={visualModalKind}
+          initialData={editingItem}
+          onSave={handleSaveResource}
+          onClose={() => setVisualModalKind(null)}
+        />
+      )}
     </>
   );
 }
