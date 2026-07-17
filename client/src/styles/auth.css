@@ -211,24 +211,48 @@
 
 .error-page {
   min-height: 65vh;
-  display: grid;
-  place-content: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  justify-items: center;
+  padding: 32px;
 }
 
 .error-page > span {
-  font-size: 90px;
-  font-weight: 800;
-  color: #a47bef44;
-  letter-spacing: -0.09em;
+  font-size: 120px;
+  font-weight: 900;
+  line-height: 1;
+  background: linear-gradient(135deg, #a47bef 0%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  opacity: 0.15;
+  letter-spacing: -0.05em;
+  margin-bottom: -10px;
+  user-select: none;
 }
 
 .error-page h1 {
-  font-size: 30px;
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: var(--text);
 }
 
 .error-page p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
+  max-width: 400px;
+  line-height: 1.6;
+  margin: 0 0 24px;
+}
+
+.error-page .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.2s;
 }

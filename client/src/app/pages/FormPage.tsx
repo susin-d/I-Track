@@ -50,10 +50,22 @@ export function ErrorPage({ code }: { code: string }) {
         We couldn't complete this request. Return to a familiar place and try
         again.
       </p>
-      <NavLink className="btn primary" to="/dashboard">
-        <Icons.ArrowLeft />
-        Back to dashboard
-      </NavLink>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "20px" }}>
+        <NavLink className="btn primary" to="/dashboard">
+          <Icons.ArrowLeft size={16} />
+          Back to dashboard
+        </NavLink>
+        <div style={{ display: "flex", gap: "12px", fontSize: "13px", color: "var(--muted)" }}>
+          <span>Or try:</span>
+          <NavLink to="/backlog" style={{ color: "#a47bef", textDecoration: "none", fontWeight: 500 }}>Backlog</NavLink>
+          <span>·</span>
+          <NavLink to="/board" style={{ color: "#a47bef", textDecoration: "none", fontWeight: 500 }}>Board</NavLink>
+          <span>·</span>
+          <NavLink to="/sprints" style={{ color: "#a47bef", textDecoration: "none", fontWeight: 500 }}>Sprints</NavLink>
+          <span>·</span>
+          <NavLink to="/team" style={{ color: "#a47bef", textDecoration: "none", fontWeight: 500 }}>Team</NavLink>
+        </div>
+      </div>
     </div>
   );
 }

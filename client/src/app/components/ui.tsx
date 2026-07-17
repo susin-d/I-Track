@@ -466,21 +466,57 @@ export function Empty({
   title,
   body,
   action,
+  icon,
 }: {
   title: string;
   body?: string;
   action?: { label: string; to: string };
+  icon?: React.ComponentType<any>;
 }) {
+  let Icon = icon;
+  if (!Icon) {
+    const t = title.toLowerCase();
+    if (t.includes("notification")) Icon = Icons.Bell;
+    else if (t.includes("audit")) Icon = Icons.Activity;
+    else if (t.includes("integration")) Icon = Icons.Webhook;
+    else if (t.includes("group")) Icon = Icons.Users;
+    else if (t.includes("work")) Icon = Icons.CheckSquare;
+    else if (t.includes("sprint")) Icon = Icons.Timer;
+    else if (t.includes("cycle")) Icon = Icons.Repeat2;
+    else if (t.includes("session")) Icon = Icons.Monitor;
+    else if (t.includes("ticket") || t.includes("issue")) Icon = Icons.Ticket;
+    else if (t.includes("access") || t.includes("administrator")) Icon = Icons.ShieldAlert;
+    else if (t.includes("release")) Icon = Icons.Rocket;
+    else if (t.includes("epic")) Icon = Icons.Map;
+    else if (t.includes("workflow")) Icon = Icons.GitBranch;
+    else if (t.includes("rule") || t.includes("automation")) Icon = Icons.Zap;
+    else Icon = Icons.FolderOpen;
+  }
+
   return (
-    <div className="empty">
+    <div className="empty-state-container">
+      <div className="empty-state-icon-wrapper">
+        <Icon size={28} className="empty-state-icon" />
+      </div>
       <h3>{title}</h3>
-      {body && <p>{body}</p>}
-      {action && (
-        <NavLink className="btn primary" to={action.to}>
-          <Icons.ArrowRight />
-          {action.label}
-        </NavLink>
-      )}
+      {body && <p className="empty-state-body">{body}</p>}
+      <div className="empty-state-actions">
+        {action ? (
+          <NavLink className="btn primary" to={action.to}>
+            <Icons.ArrowRight size={16} />
+            {action.label}
+          </NavLink>
+        ) : (
+          <div className="empty-state-suggestions">
+            <NavLink to="/dashboard" className="suggestion-link">
+              <Icons.LayoutDashboard size={14} /> Go to Dashboard
+            </NavLink>
+            <NavLink to="/tickets" className="suggestion-link">
+              <Icons.Search size={14} /> Search Tickets
+            </NavLink>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
