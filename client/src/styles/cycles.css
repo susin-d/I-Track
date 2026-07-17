@@ -1,0 +1,357 @@
+.check-list {
+  display: grid;
+  gap: 8px;
+  max-height: 180px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.check-list label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.cycles-page {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.cycle-overview {
+  display: grid;
+  grid-template-columns: minmax(300px, 1.7fr) repeat(3, minmax(150px, 0.7fr));
+  margin-bottom: 18px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 8px 26px rgba(36, 29, 52, 0.04);
+}
+
+.cycle-overview-intro,
+.cycle-stat {
+  min-height: 118px;
+  padding: 22px;
+}
+
+.cycle-overview-intro {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: linear-gradient(135deg, rgba(132, 83, 229, 0.11), rgba(132, 83, 229, 0.025));
+}
+
+.cycle-overview-icon {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: var(--purple-strong);
+  background: var(--surface);
+  box-shadow: 0 6px 18px rgba(79, 48, 139, 0.12);
+}
+
+.cycle-overview-icon svg {
+  width: 21px;
+}
+
+.cycle-overview-intro small,
+.cycle-form-kicker {
+  color: var(--purple-strong);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+}
+
+.cycle-overview-intro strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 18px;
+}
+
+.cycle-overview-intro p,
+.cycle-stat small {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.cycle-stat {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-left: 1px solid var(--border);
+}
+
+.cycle-stat > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.cycle-stat strong {
+  margin: 4px 0 1px;
+  font-size: 25px;
+  letter-spacing: -0.04em;
+}
+
+.cycle-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 370px;
+  gap: 18px;
+  align-items: start;
+}
+
+.cycle-workspace-viewer {
+  grid-template-columns: 1fr;
+}
+
+.cycle-plan-panel,
+.cycle-create-panel {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.cycle-plan-panel {
+  min-height: 520px;
+  padding: 22px;
+}
+
+.cycle-section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 19px;
+}
+
+.cycle-section-head h2 {
+  margin: 0;
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+
+.cycle-section-head p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.cycle-count {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.cycle-list {
+  display: grid;
+  gap: 12px;
+}
+
+.cycle-card {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.cycle-card:hover {
+  border-color: rgba(132, 83, 229, 0.35);
+  box-shadow: 0 10px 24px rgba(48, 37, 72, 0.06);
+  transform: translateY(-1px);
+}
+
+.cycle-card-head,
+.cycle-title-line,
+.cycle-progress > div {
+  display: flex;
+  align-items: center;
+}
+
+.cycle-card-head {
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+}
+
+.cycle-title-line {
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.cycle-title-line h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.cycle-card-head p {
+  margin: 7px 0 0;
+  max-width: 680px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.cycle-delete {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.cycle-card-meta {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr 0.9fr;
+  gap: 12px;
+  margin: 17px 0;
+}
+
+.cycle-card-meta > span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.cycle-card-meta svg {
+  width: 16px;
+  flex: 0 0 auto;
+  color: var(--purple-strong);
+}
+
+.cycle-card-meta small,
+.cycle-card-meta b {
+  display: block;
+}
+
+.cycle-card-meta small {
+  margin-bottom: 2px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.cycle-card-meta b {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cycle-progress {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.cycle-progress > div {
+  justify-content: space-between;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.cycle-progress strong {
+  color: var(--text);
+  font-size: 11px;
+}
+
+.cycle-create-panel {
+  position: sticky;
+  top: 88px;
+  padding: 22px;
+}
+
+.cycle-form-kicker {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 7px;
+}
+
+.cycle-form-kicker svg {
+  width: 12px;
+}
+
+.cycle-form {
+  display: grid;
+  gap: 15px;
+}
+
+.cycle-form .field > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cycle-form .field > span small {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.cycle-form textarea {
+  height: 82px;
+}
+
+.cycle-date-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.cycle-sprint-list {
+  max-height: 154px;
+  padding: 6px;
+  gap: 2px;
+  background: var(--surface);
+}
+
+.cycle-sprint-list label {
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.cycle-sprint-list label:hover {
+  background: var(--surface-2);
+}
+
+.cycle-sprint-list label > span {
+  display: grid;
+  gap: 2px;
+  font-weight: 650;
+}
+
+.cycle-sprint-list label small,
+.cycle-sprint-list > p {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.cycle-sprint-list > p {
+  margin: 6px;
+}
+
+.cycle-submit {
+  width: 100%;
+  min-height: 42px;
+}
+
+.cycle-submit svg {
+  width: 16px;
+}

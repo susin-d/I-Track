@@ -1,0 +1,506 @@
+.center-form {
+  max-width: 760px;
+  margin: auto;
+}
+
+.back-btn {
+  border: 0;
+  background: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.back-btn svg {
+  width: 16px;
+}
+
+.center-form > .card {
+  padding: 30px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.field.full {
+  grid-column: span 2;
+}
+
+.field input,
+.field select,
+.field textarea,
+.comment {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--surface-2);
+  padding: 10px 11px;
+  outline: none;
+}
+
+.field input,
+.field select {
+  height: 40px;
+}
+
+.field textarea {
+  height: 110px;
+  resize: vertical;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.comment:focus {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px #a47bef22;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.risk-hero {
+  display: grid;
+  grid-template-columns: 230px 1fr;
+  gap: 28px;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 15px;
+}
+
+.risk-score {
+  display: grid;
+  place-items: center;
+  border-right: 1px solid var(--border);
+}
+
+.risk-score > span {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+}
+
+.risk-score > strong {
+  font-size: 64px;
+  letter-spacing: -0.08em;
+}
+
+.risk-score > small {
+  margin: 8px;
+  color: var(--orange);
+}
+
+.risk-hero > div:last-child h2 {
+  font-size: 22px;
+}
+
+.risk-hero > div:last-child p {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.risk-scale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 9px;
+  margin-top: 6px;
+}
+
+.factor-list > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.factor-list > div > i {
+  width: 9px;
+  height: 34px;
+  border-radius: 6px;
+  background: var(--orange);
+}
+
+.factor-list > div > i.red {
+  background: var(--red);
+}
+
+.factor-list > div > i.yellow {
+  background: var(--yellow);
+}
+
+.factor-list > div > i.green {
+  background: var(--green);
+}
+
+.factor-list span {
+  display: grid;
+  flex: 1;
+}
+
+.factor-list small {
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.factor-list strong {
+  font-size: 12px;
+}
+
+.recommendation {
+  background: var(--lime);
+  color: #1a1a1a;
+  border: 0;
+}
+
+.recommendation h2 {
+  font-size: 21px;
+  margin-top: 18px;
+}
+
+.recommendation p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.recommendation > div {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #1a1a1a25;
+  padding: 17px 0;
+  margin-top: 35px;
+  font-size: 12px;
+}
+
+.toast-stack {
+  position: fixed;
+  z-index: 100;
+  right: 18px;
+  bottom: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.toast {
+  background: #1a1a1a;
+  color: #fff;
+  border-radius: 9px;
+  padding: 12px 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  box-shadow: 0 10px 30px #0005;
+}
+
+.toast svg {
+  color: var(--lime);
+}
+
+.modal-wrap {
+  position: fixed;
+  z-index: 90;
+  inset: 0;
+  background: #0008;
+  display: grid;
+  place-items: start center;
+  padding-top: 12vh;
+}
+
+.app-dialog-wrap {
+  z-index: 120;
+  background: rgb(4 8 15 / 58%);
+  place-items: center;
+  padding: 20px;
+}
+
+.app-dialog {
+  width: min(560px, calc(100vw - 40px));
+  padding: 28px 24px 22px;
+  border: 1px solid color-mix(in srgb, var(--text) 16%, var(--border));
+  border-radius: 16px;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 38%);
+  animation: app-dialog-in 140ms ease-out;
+}
+
+.app-dialog-brand {
+  margin-bottom: 18px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: .01em;
+}
+
+.app-dialog-brand span {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.app-dialog h2 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.app-dialog-message {
+  margin: 0 0 18px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.app-dialog-fields {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.app-dialog-field {
+  display: grid;
+  gap: 6px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.app-dialog-field b {
+  color: var(--red, #d85c5c);
+}
+
+.app-dialog-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  outline: none;
+  font: inherit;
+  font-size: 14px;
+}
+
+.app-dialog-textarea {
+  min-height: 108px;
+  resize: vertical;
+}
+
+.app-dialog-field select {
+  appearance: auto;
+  cursor: pointer;
+  background-color: var(--surface-2);
+}
+
+.app-dialog-field select option {
+  background-color: var(--surface, #1e1e2d);
+  color: var(--text, #ffffff);
+}
+
+.app-dialog-input:focus {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--purple) 20%, transparent);
+}
+
+.app-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.app-dialog-actions .btn {
+  min-width: 88px;
+  min-height: 40px;
+}
+
+.app-dialog-confirm-button {
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--purple) 20%, transparent);
+}
+
+@keyframes app-dialog-in {
+  from { opacity: 0; transform: translateY(8px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.command {
+  width: min(580px, 92vw);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  box-shadow: 0 25px 80px #0005;
+  overflow: hidden;
+  padding: 8px;
+}
+
+.command > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px;
+}
+
+.command > div svg {
+  color: var(--muted);
+}
+
+.command .command-close {
+  flex: none;
+}
+
+.command-empty {
+  min-height: 150px;
+  display: grid !important;
+  place-content: center;
+  justify-items: center;
+  gap: 6px !important;
+  color: var(--muted);
+  text-align: center;
+}
+
+.command-empty svg {
+  width: 28px;
+  height: 28px;
+  color: var(--purple) !important;
+}
+
+.command-empty b {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.command-empty span {
+  font-size: 11px;
+}
+
+.command input {
+  border: 0;
+  background: transparent;
+  outline: 0;
+  flex: 1;
+  font-size: 14px;
+}
+
+.command > p {
+  font-size: 9px;
+  color: var(--muted);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  padding: 10px;
+  margin: 0;
+}
+
+.command > button {
+  border: 0;
+  background: none;
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 7px;
+}
+
+.command > button:hover {
+  background: var(--surface-2);
+}
+
+.command > button svg {
+  width: 17px;
+  color: var(--purple);
+}
+
+.command > button span {
+  flex: 1;
+  text-align: left;
+  font-size: 12px;
+}
+
+.command > button svg:last-child {
+  color: var(--muted);
+}
+
+.scrim {
+  position: fixed;
+  z-index: 25;
+  inset: 0;
+  background: #0007;
+  border: 0;
+}
+
+.dev-role {
+  position: fixed;
+  z-index: 19;
+  bottom: 8px;
+  left: calc(var(--sidebar) + 10px);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 4px 7px;
+  opacity: 0.15;
+  transition: 0.2s;
+  font-size: 9px;
+}
+
+.dev-role:hover {
+  opacity: 1;
+}
+
+.dev-role select {
+  min-height: 0;
+  border: 0;
+  background-color: transparent;
+  background-position: right center;
+  background-size: 11px;
+  padding: 0 16px 0 0;
+  font-size: 9px;
+}
+
+.app-loading {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  background: var(--bg);
+  color: var(--muted);
+}
+
+.app-loading .brand-mark {
+  margin-bottom: 5px;
+}
+
+.app-loading.error svg {
+  width: 38px;
+  height: 38px;
+  color: var(--red);
+}
+
+.app-loading.error p {
+  font-size: 12px;
+}
