@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { MiniDatePicker } from "./MiniDatePicker";
 
 type DialogMode = "form" | "confirm";
 
@@ -68,6 +69,7 @@ export function AppDialogHost() {
   const active = queue[0];
   const dialogRef = useRef<HTMLFormElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const [dateValues, setDateValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const listener: DialogListener = (request) => setQueue((current) => [...current, request]);
@@ -79,6 +81,15 @@ export function AppDialogHost() {
 
   useEffect(() => {
     if (!active) return;
+    // Set initial date values
+    const initialDates: Record<string, string> = {};
+    (active.options.fields || []).forEach((field) => {
+      if (field.type === "date") {
+        initialDates[field.name] = field.defaultValue || "";
+      }
+    });
+    setDateValues(initialDates);
+
     const firstField = dialogRef.current?.querySelector<HTMLElement>("[data-dialog-autofocus]");
     (firstField || confirmRef.current)?.focus();
     if (firstField instanceof HTMLInputElement) firstField.select();
@@ -123,8 +134,14 @@ export function AppDialogHost() {
       close(true);
       return;
     }
+    const formData = new FormData(dialogRef.current || undefined);
     const values = Object.fromEntries(
-      (options.fields || []).map((field) => [field.name, new FormData(dialogRef.current || undefined).get(field.name)?.toString() || ""]),
+      (options.fields || []).map((field) => {
+        if (field.type === "date") {
+          return [field.name, dateValues[field.name] || ""];
+        }
+        return [field.name, formData.get(field.name)?.toString() || ""];
+      }),
     );
     close(values);
   };
@@ -148,29 +165,54 @@ export function AppDialogHost() {
         {options.message && <p className="app-dialog-message">{options.message}</p>}
         {options.mode === "form" && (
           <div className="app-dialog-fields">
-            {(options.fields || []).map((field, index) => (
-              <label className="app-dialog-field" key={field.name}>
-                <span>{field.label}{field.required ? <b aria-hidden="true"> *</b> : null}</span>
-                {field.type === "textarea" ? (
-                  <textarea
-                    className="app-dialog-input app-dialog-textarea"
-                    name={field.name}
-                    defaultValue={field.defaultValue || ""}
-                    placeholder={field.placeholder}
-                    required={field.required}
-                    data-dialog-autofocus={index === 0 ? "true" : undefined}
-                  />
-                ) : field.type === "select" ? (
-                  <select
-                    className="app-dialog-input"
-                    name={field.name}
-                    defaultValue={field.defaultValue || ""}
-                    required={field.required}
-                    data-dialog-autofocus={index === 0 ? "true" : undefined}
-                  >
-                    {(field.options || []).map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
-                  </select>
-                ) : (
+            {(options.fields || []).map((field, index) => {
+              if (field.type === "textarea") {
+                return (
+                  <label className="app-dialog-field" key={field.name}>
+                    <span>{field.label}{field.required ? <b aria-hidden="true"> *</b> : null}</span>
+                    <textarea
+                      className="app-dialog-input app-dialog-textarea"
+                      name={field.name}
+                      defaultValue={field.defaultValue || ""}
+                      placeholder={field.placeholder}
+                      required={field.required}
+                      data-dialog-autofocus={index === 0 ? "true" : undefined}
+                    />
+                  </label>
+                );
+              }
+              if (field.type === "select") {
+                return (
+                  <label className="app-dialog-field" key={field.name}>
+                    <span>{field.label}{field.required ? <b aria-hidden="true"> *</b> : null}</span>
+                    <select
+                      className="app-dialog-input"
+                      name={field.name}
+                      defaultValue={field.defaultValue || ""}
+                      required={field.required}
+                      data-dialog-autofocus={index === 0 ? "true" : undefined}
+                    >
+                      {(field.options || []).map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
+                    </select>
+                  </label>
+                );
+              }
+              if (field.type === "date") {
+                return (
+                  <div className="app-dialog-field" key={field.name}>
+                    <MiniDatePicker
+                      name={field.name}
+                      label={field.label + (field.required ? " *" : "")}
+                      value={dateValues[field.name] || ""}
+                      onChange={(val) => setDateValues((prev) => ({ ...prev, [field.name]: val }))}
+                      required={field.required}
+                    />
+                  </div>
+                );
+              }
+              return (
+                <label className="app-dialog-field" key={field.name}>
+                  <span>{field.label}{field.required ? <b aria-hidden="true"> *</b> : null}</span>
                   <input
                     className="app-dialog-input"
                     name={field.name}
@@ -180,9 +222,9 @@ export function AppDialogHost() {
                     required={field.required}
                     data-dialog-autofocus={index === 0 ? "true" : undefined}
                   />
-                )}
-              </label>
-            ))}
+                </label>
+              );
+            })}
           </div>
         )}
         <div className="app-dialog-actions">
@@ -197,3 +239,4 @@ export function AppDialogHost() {
     </div>
   );
 }
+
