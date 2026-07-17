@@ -19,7 +19,14 @@ export type InvitationMailDetails = {
   invitedBy: string;
   role: string;
   inviteUrl: string;
+  otp: string;
   expiresAt: Date;
+};
+
+export type OtpMailDetails = {
+  purpose: "registration" | "login";
+  otp: string;
+  expiresInMinutes?: number;
 };
 
 let transporter: Transporter | undefined;
@@ -107,8 +114,20 @@ export function buildInvitationEmail(details: InvitationMailDetails): MailMessag
   const expiry = formatDate(details.expiresAt);
   return {
     subject: `You have been invited to ${details.organizationName} on I-TRACK`,
-    text: `Hi ${details.recipient.name || "there"},\n\n${details.invitedBy} invited you to join ${details.organizationName} on I-TRACK as a ${formatRole(details.role)}.\n\nAccept the invitation: ${details.inviteUrl}\n\nThis invitation expires on ${expiry}.`,
-    html: htmlLayout(`Join ${details.organizationName}`, `${details.invitedBy} invited you to collaborate in this I-TRACK workspace.`, `<p style="color:#4b5563;line-height:1.6">You have been invited as a <strong>${escapeHtml(formatRole(details.role))}</strong>.</p><p style="color:#6b7280;font-size:13px;line-height:1.6">Invitation expires: ${escapeHtml(expiry)}</p>`, { label: "Accept invitation", url: details.inviteUrl }),
+    text: `Hi ${details.recipient.name || "there"},\n\n${details.invitedBy} invited you to join ${details.organizationName} on I-TRACK as a ${formatRole(details.role)}.\n\nAccept the invitation: ${details.inviteUrl}\n\nYour invitation verification code is: ${details.otp}\nThis code is valid until the invitation expires on ${expiry}.`,
+    html: htmlLayout(`Join ${details.organizationName}`, `${details.invitedBy} invited you to collaborate in this I-TRACK workspace.`, `<p style="color:#4b5563;line-height:1.6">You have been invited as a <strong>${escapeHtml(formatRole(details.role))}</strong>.</p><p style="background:#f3f4f6;border-radius:8px;color:#111827;font-size:28px;font-weight:700;letter-spacing:8px;padding:16px;text-align:center">${escapeHtml(details.otp)}</p><p style="color:#6b7280;font-size:13px;line-height:1.6">Invitation expires: ${escapeHtml(expiry)}</p>`, { label: "Accept invitation", url: details.inviteUrl }),
+  };
+}
+
+export function buildOtpEmail(user: UserMailRecipient, details: OtpMailDetails): MailMessage {
+  const expiresInMinutes = details.expiresInMinutes ?? 10;
+  const isRegistration = details.purpose === "registration";
+  const title = isRegistration ? "Verify your email" : "Your I-TRACK login code";
+  const intro = isRegistration ? `Use this code to verify ${user.email} and finish creating your account.` : `Use this code to finish signing in to ${user.email}.`;
+  return {
+    subject: isRegistration ? "Verify your I-TRACK email" : "Your I-TRACK login verification code",
+    text: `Hi ${user.name},\n\n${intro}\n\nYour verification code is: ${details.otp}\nThis code expires in ${expiresInMinutes} minutes.\n\nIf you did not request this, you can ignore this email.`,
+    html: htmlLayout(title, intro, `<p style="background:#f3f4f6;border-radius:8px;color:#111827;font-size:28px;font-weight:700;letter-spacing:8px;padding:16px;text-align:center">${escapeHtml(details.otp)}</p><p style="color:#6b7280;font-size:13px;line-height:1.6">This code expires in ${expiresInMinutes} minutes.</p>`),
   };
 }
 
@@ -123,4 +142,5 @@ export function buildPasswordResetEmail(user: UserMailRecipient, resetUrl: strin
 export const sendRegistrationEmail = (user: UserMailRecipient) => sendTransactionalMail(user, buildRegistrationEmail(user));
 export const sendLoginEmail = (user: UserMailRecipient, details?: LoginMailDetails) => sendTransactionalMail(user, buildLoginEmail(user, details));
 export const sendInvitationEmail = (details: InvitationMailDetails) => sendTransactionalMail(details.recipient, buildInvitationEmail(details));
+export const sendOtpEmail = (user: UserMailRecipient, details: OtpMailDetails) => sendTransactionalMail(user, buildOtpEmail(user, details));
 export const sendPasswordResetEmail = (user: UserMailRecipient, resetUrl: string) => sendTransactionalMail(user, buildPasswordResetEmail(user, resetUrl));

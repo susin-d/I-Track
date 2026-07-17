@@ -1850,14 +1850,17 @@ td:first-child small {
 .sla-metric.purple { color: var(--purple-strong); }
 .sla-workspace {
   display: grid;
-  grid-template-columns: minmax(440px, 0.82fr) minmax(580px, 1.18fr);
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
 }
 .sla-policy-card,
 .sla-queue-card {
   padding: 0;
   overflow: hidden;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 .sla-section-head {
   min-height: 74px;
@@ -1965,6 +1968,40 @@ td:first-child small {
 .sla-queue-table .table-wrap {
   border: 0;
   border-radius: 0;
+}
+.sla-queue-table {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.sla-queue-table .table-wrap {
+  width: 100%;
+}
+.sla-queue-empty {
+  flex: 1;
+  min-height: 300px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 32px;
+  color: var(--muted);
+  text-align: center;
+}
+.sla-queue-empty > svg {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 4px;
+  color: var(--purple-strong);
+}
+.sla-queue-empty h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+}
+.sla-queue-empty p {
+  margin: 0;
+  font-size: 11px;
 }
 .sla-queue-table th {
   background: var(--surface-2);

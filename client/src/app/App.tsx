@@ -45,6 +45,7 @@ import {
 } from "./components/ui";
 import { cx, fmt } from "../utils/ui";
 import { CustomMarkdown } from "./components/Markdown";
+import { AppDialogHost, appConfirm, appPrompt } from "./components/AppDialog";
 
 const defaultNotificationPreferences: NotificationPreferences = {
   ticketAssignments: true,
@@ -146,6 +147,7 @@ export function App() {
             </div>
           ))}
         </div>
+        <AppDialogHost />
       </ApiGate>
     </BrowserRouter>
   );
@@ -1543,7 +1545,7 @@ function ProjectSettings({
   };
 
   const remove = async () => {
-    const confirmation = window.prompt(
+    const confirmation = await appPrompt(
       `Type ${project.key} to permanently delete this project.`,
     );
     if (confirmation !== project.key) return;
@@ -2572,7 +2574,7 @@ function SprintDetail() {
   };
 
   const deleteSprint = async () => {
-    if (!window.confirm("Are you sure you want to delete this sprint?")) return;
+    if (!(await appConfirm("Are you sure you want to delete this sprint?"))) return;
     try {
       await mutate(() => api(`/sprints/${s._id}`, { method: "DELETE" }));
       toast("Sprint deleted");
@@ -3323,7 +3325,7 @@ function Team() {
   };
 
   const cancelInvite = async (userId: string) => {
-    if (!window.confirm("Cancel this invitation?")) return;
+    if (!(await appConfirm("Cancel this invitation?"))) return;
     try {
       await api(`/invitations/${userId}`, { method: "DELETE" });
       toast("Invitation cancelled");
@@ -5412,7 +5414,7 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
 
   const remove = async () => {
     if (
-      window.prompt(`Type ${raw.ticketId} to delete this ticket`) !==
+      (await appPrompt(`Type ${raw.ticketId} to delete this ticket`)) !==
       raw.ticketId
     )
       return;
@@ -5427,7 +5429,7 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
   };
 
   const addComment = async () => {
-    const body = window.prompt("Enter comment body:");
+    const body = await appPrompt("Enter comment body:");
     if (!body) return;
     try {
       await mutate(() =>
@@ -5443,7 +5445,7 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
   };
 
   const editComment = async (commentId: string, currentBody: string) => {
-    const body = window.prompt("Edit comment body:", currentBody);
+    const body = await appPrompt("Edit comment body:", currentBody);
     if (!body) return;
     try {
       await mutate(() =>
@@ -5459,7 +5461,7 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
   };
 
   const deleteComment = async (commentId: string) => {
-    if (!window.confirm("Delete this comment?")) return;
+    if (!(await appConfirm("Delete this comment?"))) return;
     try {
       await mutate(() =>
         api(`/tickets/${raw._id}/comments/${commentId}`, {
@@ -5473,8 +5475,8 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
   };
 
   const addWorkLog = async () => {
-    const note = window.prompt("Work log note:");
-    const hours = Number(window.prompt("Hours worked:", "1"));
+    const note = await appPrompt("Work log note:");
+    const hours = Number(await appPrompt("Hours worked:", "1", { inputType: "number" }));
     if (!note || !hours) return;
     try {
       await mutate(() =>
@@ -5494,8 +5496,8 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
     currentNote: string,
     currentHours: number,
   ) => {
-    const note = window.prompt("Edit note:", currentNote);
-    const hours = Number(window.prompt("Edit hours:", String(currentHours)));
+    const note = await appPrompt("Edit note:", currentNote);
+    const hours = Number(await appPrompt("Edit hours:", String(currentHours), { inputType: "number" }));
     if (!note || !hours) return;
     try {
       await mutate(() =>
@@ -5511,7 +5513,7 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
   };
 
   const deleteWorkLog = async (logId: string) => {
-    if (!window.confirm("Delete this work log?")) return;
+    if (!(await appConfirm("Delete this work log?"))) return;
     try {
       await mutate(() =>
         api(`/tickets/${raw._id}/work-logs/${logId}`, {
@@ -5556,12 +5558,12 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
   };
 
   const addIssueLink = async () => {
-    const type = window.prompt(
+    const type = await appPrompt(
       "Link type: blocks, is-blocked-by, relates-to, or duplicates",
       "relates-to",
     );
     if (!type || !["blocks", "is-blocked-by", "relates-to", "duplicates"].includes(type)) return;
-    const targetKey = window.prompt("Ticket key to link (for example ITR-102)");
+    const targetKey = await appPrompt("Ticket key to link (for example ITR-102)");
     if (!targetKey) return;
     const target = (dashboard?.tickets || []).find(
       (ticket: any) => ticket.ticketId.toLowerCase() === targetKey.trim().toLowerCase(),
@@ -5584,7 +5586,7 @@ function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
   };
 
   const deleteAttachment = async (attachmentId: string) => {
-    if (!window.confirm("Delete this attachment?")) return;
+    if (!(await appConfirm("Delete this attachment?"))) return;
     try {
       await mutate(() =>
         api(`/tickets/${raw._id}/attachments/${attachmentId}`, {
@@ -5971,9 +5973,9 @@ function GroupsLive({ toast }: { toast: (s: string) => void }) {
   }, [load]);
 
   const create = async () => {
-    const name = window.prompt("Group name (for example Engineering)");
+    const name = await appPrompt("Group name (for example Engineering)");
     if (!name || !companyId) return;
-    const description = window.prompt("Group description", "") || "";
+    const description = (await appPrompt("Group description", "")) || "";
     try {
       await api(`/companies/${companyId}/groups`, { method: "POST", body: JSON.stringify({ name, description }) });
       await load();
@@ -5985,7 +5987,7 @@ function GroupsLive({ toast }: { toast: (s: string) => void }) {
 
   const setMembers = async (group: any) => {
     const current = (group.members || []).map((member: any) => member.email).join(", ");
-    const emails = window.prompt("Member emails, separated by commas", current);
+    const emails = await appPrompt("Member emails, separated by commas", current);
     if (emails === null || !companyId) return;
     const requested = emails.split(",").map((email) => email.trim().toLowerCase()).filter(Boolean);
     const users = directory;
@@ -6003,9 +6005,9 @@ function GroupsLive({ toast }: { toast: (s: string) => void }) {
 
   const setWorkspaceAccess = async (group: any) => {
     const currentNames = (group.workspaceAccess || []).map((grant: any) => workspaces.find((workspace: any) => String(workspace._id) === String(grant.workspace))?.name).filter(Boolean).join(", ");
-    const names = window.prompt("Workspace names this group can access, separated by commas", currentNames);
+    const names = await appPrompt("Workspace names this group can access, separated by commas", currentNames);
     if (names === null || !companyId) return;
-    const role = window.prompt("Access role: manager, engineer, or designer", "engineer");
+    const role = await appPrompt("Access role: manager, engineer, or designer", "engineer");
     if (!role || !["manager", "engineer", "designer"].includes(role)) return toast("Choose a valid workspace role");
     const requested = names.split(",").map((name) => name.trim().toLowerCase()).filter(Boolean);
     const missing = requested.filter((name) => !workspaces.some((workspace: any) => workspace.name.toLowerCase() === name));
@@ -6021,7 +6023,7 @@ function GroupsLive({ toast }: { toast: (s: string) => void }) {
   };
 
   const remove = async (group: any) => {
-    if (!companyId || !window.confirm(`Delete ${group.name}?`)) return;
+    if (!companyId || !(await appConfirm(`Delete ${group.name}?`))) return;
     try {
       await api(`/companies/${companyId}/groups/${group._id}`, { method: "DELETE" });
       await load();
@@ -6102,12 +6104,14 @@ function OrganizationLive({ toast }: { toast: (s: string) => void }) {
   };
 
   const remove = async () => {
-    const confirmation = window.prompt(
+    const confirmation = await appPrompt(
       `Type ${org.name} to permanently delete this workspace.`,
     );
     if (confirmation !== org.name) return;
-    const currentPassword = window.prompt(
+    const currentPassword = await appPrompt(
       "Enter your current password to confirm permanent deletion.",
+      "",
+      { inputType: "password" },
     );
     if (!currentPassword) return;
     try {
@@ -6516,7 +6520,15 @@ function SlaPage({ toast }: { toast: (s: string) => void }) {
             <span className="sla-ticket-count">{slaTickets.length} {slaTickets.length === 1 ? "ticket" : "tickets"}</span>
           </div>
           <div className="sla-queue-table">
-            <TicketTable rows={slaTickets} />
+            {slaTickets.length ? (
+              <TicketTable rows={slaTickets} />
+            ) : (
+              <div className="sla-queue-empty">
+                <Icons.Inbox />
+                <h3>No tickets in the SLA queue</h3>
+                <p>Tickets with an active SLA will appear here.</p>
+              </div>
+            )}
           </div>
         </section>
       </div>
@@ -6565,7 +6577,7 @@ function CyclesLive({ toast }: { toast: (s: string) => void }) {
   };
 
   const deleteCycle = async (cycleId: string) => {
-    if (!window.confirm("Delete this cycle? Sprints will remain intact.")) return;
+    if (!(await appConfirm("Delete this cycle? Sprints will remain intact."))) return;
     try {
       await api(`/cycles/${cycleId}`, { method: "DELETE" });
       toast("Cycle deleted");
@@ -6897,14 +6909,14 @@ const resourceIcons: Record<string, React.ComponentType<any>> = {
   "saved-filter": Icons.ListFilter,
 };
 
-function collectResourceDefinition(kind: string, current?: any) {
-  const name = window.prompt(`${current ? "Edit" : "Name for"} ${fmt(kind)}`, current?.name || "");
+async function collectResourceDefinition(kind: string, current?: any) {
+  const name = await appPrompt(`${current ? "Edit" : "Name for"} ${fmt(kind)}`, current?.name || "");
   if (!name) return null;
-  const description = window.prompt("Description", current?.description || "") ?? current?.description ?? "";
-  const key = window.prompt("Key (optional)", current?.key || "") ?? current?.key ?? "";
+  const description = await appPrompt("Description", current?.description || "") ?? current?.description ?? "";
+  const key = await appPrompt("Key (optional)", current?.key || "") ?? current?.key ?? "";
   const config = { ...(current?.config || {}) };
   for (const field of resourceFeatureConfig[kind]?.fields || []) {
-    const value = window.prompt(field.label, String(config[field.key] ?? field.initial ?? ""));
+    const value = await appPrompt(field.label, String(config[field.key] ?? field.initial ?? ""));
     if (value === null) return null;
     config[field.key] = value.trim();
   }
@@ -6950,7 +6962,7 @@ function ResourcesLive({ toast }: { toast: (s: string) => void }) {
       : filtered;
 
     const create = async () => {
-      const definition = collectResourceDefinition(kind);
+      const definition = await collectResourceDefinition(kind);
       if (!definition) return;
       try {
         await mutate(() =>
@@ -6969,7 +6981,7 @@ function ResourcesLive({ toast }: { toast: (s: string) => void }) {
     };
 
     const edit = async (item: any) => {
-      const definition = collectResourceDefinition(kind, item);
+      const definition = await collectResourceDefinition(kind, item);
       if (!definition) return;
       try {
         await mutate(() =>
@@ -6995,7 +7007,7 @@ function ResourcesLive({ toast }: { toast: (s: string) => void }) {
     };
 
     const remove = async (item: any) => {
-      if (!window.confirm(`Are you sure you want to delete ${item.name}?`))
+      if (!(await appConfirm(`Are you sure you want to delete ${item.name}?`)))
         return;
       try {
         await mutate(() =>
@@ -7158,16 +7170,16 @@ function IntegrationsLive({ toast }: { toast: (s: string) => void }) {
 
   const create = async () => {
     if (!isAdmin) return toast("Only admins can create integrations");
-    const kind = window.prompt(
+    const kind = await appPrompt(
       "Integration type: webhook or api-token",
       "webhook",
     );
     if (!kind || !["webhook", "api-token"].includes(kind)) return;
-    const name = window.prompt("Integration name");
+    const name = await appPrompt("Integration name");
     if (!name) return;
     const url =
       kind === "webhook"
-        ? window.prompt("Webhook URL") || undefined
+        ? (await appPrompt("Webhook URL")) || undefined
         : undefined;
     try {
       let createdToken = "";
@@ -7181,9 +7193,10 @@ function IntegrationsLive({ toast }: { toast: (s: string) => void }) {
       });
 
       if (createdToken) {
-        window.prompt(
+        await appPrompt(
           "Copy this token now. It will not be shown again.",
           createdToken,
+          { title: "Integration token" },
         );
       }
       toast("Integration created");
@@ -7194,7 +7207,7 @@ function IntegrationsLive({ toast }: { toast: (s: string) => void }) {
 
   const remove = async (item: any) => {
     if (!isAdmin) return toast("Only admins can delete integrations");
-    if (!window.confirm(`Delete ${item.name}?`)) return;
+    if (!(await appConfirm(`Delete ${item.name}?`))) return;
     try {
       await mutate(() =>
         api(`/integrations/${item.kind}/${item._id}`, { method: "DELETE" }),
