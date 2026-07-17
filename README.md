@@ -8,7 +8,7 @@ I-TRACK is a full-stack workspace for planning and delivering software with expl
 - Projects, backlogs, tickets, labels, dependencies, comments, work logs, attachments, and audit history.
 - Sprint boards, cycles, sprint planning, capacity and velocity data, SLA tracking, and risk analysis.
 - Reports, dashboard metrics, notifications, integrations, resources, settings, import, and export flows.
-- An AI assistant that can explain workspace data, generate ticket plans, and execute permitted API operations with confirmation for destructive actions.
+- An AI assistant with conversation history persistence that can explain workspace data, generate ticket plans, and execute permitted API operations with confirmation for destructive actions.
 
 ## Technology
 
@@ -23,7 +23,9 @@ I-TRACK is a full-stack workspace for planning and delivering software with expl
 client/       React/Vite application
 server/       Express API, database models, routes, seed data, and tests
 supabase/     PostgreSQL migrations
+docs/         Architecture, RBAC, and subsystem documentation
 api.md        Complete API endpoint reference
+LLM_BACKEND_API_GUIDE.md  Guide for LLM backend integrations
 scripts/      Repository-level utility scripts
 docker-compose.postgres.yml
               Local PostgreSQL service definition

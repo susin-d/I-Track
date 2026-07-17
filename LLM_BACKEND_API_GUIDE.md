@@ -283,6 +283,18 @@ $tickets = Invoke-RestMethod -Method Post -Uri "$base/ai/execute" -Headers $head
 } | ConvertTo-Json)
 ```
 
+## AI Conversations Management
+
+The backend supports persisted AI conversation sessions per user and organization. Clients and AI integrators can manage conversation threads directly using standard authenticated HTTP calls:
+
+- `GET /api/v1/ai/conversations` — List existing conversation threads for the authenticated user and active workspace organization.
+- `GET /api/v1/ai/conversations/:id/messages` — Retrieve message history for a specific conversation thread.
+- `DELETE /api/v1/ai/conversations/:id` — Delete a conversation thread owned by the user.
+
+> [!NOTE]
+> Internal AI meta-endpoints (`/ai/endpoints`, `/ai/execute`, `/ai/chat`, `/ai/models`, `/ai/conversations`, `/ai/conversations/:id/messages`, and `/ai/conversations/:id`) are excluded from the runtime `/ai/endpoints` list to prevent recursive tool self-execution.
+
+
 ## Roles and access
 
 Roles are `admin`, `manager`, `engineer`, and `designer`.

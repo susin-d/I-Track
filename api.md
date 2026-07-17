@@ -104,6 +104,22 @@ Access tokens are scoped to one active workspace. Switching workspaces returns r
 
 `GET /invitations/preview` expects the invitation token in the `token` query parameter.
 
+## Organizations
+
+| Method | Endpoint | Access | Confirmation |
+| --- | --- | --- | --- |
+| `GET` | `/companies` | all | No |
+| `GET` | `/companies/:companyId/workspaces` | all | No |
+| `GET` | `/companies/:companyId/members` | all | No |
+| `POST` | `/companies/:companyId/workspaces` | admin | No |
+| `GET` | `/companies/:companyId/groups` | all | No |
+| `POST` | `/companies/:companyId/groups` | admin | No |
+| `PATCH` | `/companies/:companyId/groups/:id` | admin | No |
+| `DELETE` | `/companies/:companyId/groups/:id` | admin | Requires confirmation |
+| `PUT` | `/companies/:companyId/groups/:id/members` | admin | No |
+| `PUT` | `/companies/:companyId/groups/:id/workspaces` | admin | No |
+
+
 ## Current User
 
 | Method | Endpoint | Access | Confirmation |
@@ -114,11 +130,13 @@ Access tokens are scoped to one active workspace. Switching workspaces returns r
 
 | Method | Endpoint | Access | Confirmation |
 | --- | --- | --- | --- |
+| `GET` | `/team` | all | No |
+| `POST` | `/team` | admin | No |
 | `GET` | `/users` | all | No |
 | `GET` | `/users/:id` | all | No |
 | `PATCH` | `/users/:id` | admin | No |
 | `POST` | `/users/:id/deactivate` | admin | Requires confirmation |
-| `POST` | `/users/:id/reactivate` | all | No |
+| `POST` | `/users/:id/reactivate` | admin | No |
 | `DELETE` | `/users/:id` | admin | Requires confirmation |
 | `POST` | `/invitations` | admin | No |
 | `POST` | `/invitations/:id/resend` | admin | No |
@@ -240,11 +258,14 @@ organization-group workspace grants.
 
 | Method | Endpoint | Access | Confirmation |
 | --- | --- | --- | --- |
-| `POST` | `/analysis/sprint-risk` | all | No |
+| `POST` | `/analysis/sprint-risk` | leaders | No |
 | `GET` | `/analysis/examples` | all | No |
 | `GET` | `/ai/endpoints` | all | No |
 | `POST` | `/ai/execute` | all | No |
 | `GET` | `/ai/models` | all | No |
+| `GET` | `/ai/conversations` | all | No |
+| `GET` | `/ai/conversations/:id/messages` | all | No |
+| `DELETE` | `/ai/conversations/:id` | all | Requires confirmation |
 | `POST` | `/ai/chat` | all | No |
 | `POST` | `/ai/generate-tickets` | all | No |
 | `POST` | `/ai/confirm-ticket-plan` | leaders | No |

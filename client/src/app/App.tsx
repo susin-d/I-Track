@@ -1061,9 +1061,44 @@ function useAiAgent() {
 function AiAgentPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { messages, input, setInput, loading, toolActivities, sendMessage, confirmMessage, denyMessage, clearChat } = useAiAgent();
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(() => {
+    const saved = localStorage.getItem("ai_panel_width");
+    return saved ? Math.min(Math.max(parseInt(saved, 10), 340), window.innerWidth - 60) : 440;
+  });
+  const [isResizing, setIsResizing] = useState(false);
   const bodyRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
   const { user, company, organization, role } = useWorkspace();
+
+  const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    document.body.classList.add("ai-panel-resizing");
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const newWidth = Math.max(340, Math.min(window.innerWidth - 60, window.innerWidth - moveEvent.clientX));
+      setPanelWidth(newWidth);
+    };
+
+    const onMouseUp = () => {
+      setIsResizing(false);
+      document.body.classList.remove("ai-panel-resizing");
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      setPanelWidth((currentWidth) => {
+        localStorage.setItem("ai_panel_width", String(currentWidth));
+        return currentWidth;
+      });
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }, []);
+
+  const handleResetWidth = React.useCallback(() => {
+    setPanelWidth(440);
+    localStorage.setItem("ai_panel_width", "440");
+  }, []);
 
   useEffect(() => {
     if (open && inputRef.current) inputRef.current.focus();
@@ -1100,12 +1135,19 @@ function AiAgentPanel({ open, onClose }: { open: boolean; onClose: () => void })
     <>
       <div className="ai-panel-backdrop" onClick={onClose} />
       <aside
-        className="ai-panel"
+        className={cx("ai-panel", isResizing && "is-resizing")}
         id="ai-agent-panel"
         role="dialog"
         aria-modal="true"
         aria-label="AI Agent"
+        style={{ width: `${panelWidth}px` }}
       >
+        <div
+          className="ai-resize-handle"
+          onMouseDown={handleMouseDown}
+          onDoubleClick={handleResetWidth}
+          title="Drag to resize panel (Double-click to reset width)"
+        />
         <div className="ai-panel-head">
           <div className="ai-panel-icon"><Icons.Bot size={20} /></div>
           <div>
