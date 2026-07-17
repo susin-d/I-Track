@@ -58,7 +58,28 @@ const notificationPreferenceOptions: { key: keyof NotificationPreferences; label
   { key: "weeklySummary", label: "Weekly summary" },
 ];
 
+const workspaceRouteRoots = new Set([
+  "dashboard", "my-work", "notifications", "projects", "resources", "backlog",
+  "board", "cycles", "sprints", "sla", "sprint-risk", "tickets", "team",
+  "reports", "ai", "organization", "sessions", "settings", "audit-logs",
+  "integrations", "import", "403", "500", "offline",
+]);
+
+function workspaceBasename() {
+  const parts = window.location.pathname.split("/").filter(Boolean);
+  const savedSlug = localStorage.getItem("itrack_workspace_slug");
+  if (savedSlug && parts[0] === savedSlug) return `/${savedSlug}`;
+  if (parts.length > 1 && workspaceRouteRoots.has(parts[1])) return `/${parts[0]}`;
+  if (
+    parts.length === 1 &&
+    !workspaceRouteRoots.has(parts[0]) &&
+    !["login", "register", "forgot-password", "reset-password", "accept-invite", "onboarding", "auth"].includes(parts[0])
+  ) return `/${parts[0]}`;
+  return "/";
+}
+
 export function App() {
+  const basename = workspaceBasename();
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
   const [density, setDensity] = useState(
     localStorage.getItem("density") || "comfortable",
@@ -76,10 +97,10 @@ export function App() {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2600);
   };
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <ApiGate toast={toast}>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          {basename === "/" && <Route path="/" element={<LandingPage />} />}
           <Route path="/login" element={<AuthPageLive type="login" />} />
           <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
           <Route path="/register" element={<AuthPageLive type="register" />} />
@@ -333,8 +354,7 @@ function Shell({
             .map((g) => (
               <div className="nav-group" key={g.group}>
                 <p>{g.group}</p>
-                {g.items.map(([path, icon, label]) => {
-                  const Icon = (Icons as any)[icon];
+                {g.items.map(([path, Icon, label]) => {
                   return (
                     <NavLink
                       key={path}
@@ -633,8 +653,7 @@ function Command({
           </button>
         </div>
         <p>QUICK NAVIGATION</p>
-        {results.map(([p, i, l]) => {
-            const Icon = (Icons as any)[i];
+        {results.map(([p, Icon, l]) => {
             return (
               <button
                 key={p}
@@ -5445,7 +5464,7 @@ function OrganizationLive({ toast }: { toast: (s: string) => void }) {
               <label className="field">
                 <span>Workspace slug</span>
                 <div className="input-prefix">
-                  <span>itrack.app/</span>
+                  <span>{window.location.host}/</span>
                   <input value={org?.slug || ""} readOnly />
                 </div>
               </label>

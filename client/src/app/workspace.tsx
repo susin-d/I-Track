@@ -109,8 +109,7 @@ export function ApiGate({
     risk: [],
   });
 
-  const publicPath = [
-    "/",
+  const publicPath = (location.pathname === "/" && window.location.pathname === "/") || [
     "/login",
     "/auth/google/callback",
     "/register",
@@ -126,6 +125,14 @@ export function ApiGate({
         setWorkspace((previous: any) => ({ ...previous, user: me.user, organization: me.organization, memberships: me.memberships || [], pendingInvitations: me.pendingInvitations || [] }));
         setLoading(false);
         if (!location.pathname.startsWith("/onboarding")) navigate(me.pendingInvitations?.length && !me.organization ? "/onboarding/workspace" : (me.next || "/onboarding/workspace"), { replace: true });
+        return;
+      }
+      const slug = String(me.organization.slug || "");
+      const currentPrefix = window.location.pathname.split("/").filter(Boolean)[0] || "";
+      localStorage.setItem("itrack_workspace_slug", slug);
+      if (slug && currentPrefix !== slug) {
+        const target = `/${slug}${location.pathname === "/" ? "/dashboard" : location.pathname}${window.location.search}${window.location.hash}`;
+        window.location.replace(target);
         return;
       }
       const isReports = location.pathname.startsWith("/reports");
@@ -332,7 +339,7 @@ export function ApiGate({
     } catch (e) {
       if ((e instanceof ApiError && e.status === 401) || (e instanceof Error && e.message.includes("401"))) {
         clearSession();
-        navigate("/login", { replace: true });
+        window.location.replace("/login");
       } else {
         setError(e instanceof Error ? e.message : "Unable to load workspace");
         setLoading(false);
@@ -346,7 +353,7 @@ export function ApiGate({
       return;
     }
     if (!getToken()) {
-      navigate("/login", { replace: true });
+      window.location.replace("/login");
       setLoading(false);
       return;
     }
