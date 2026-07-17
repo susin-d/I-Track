@@ -41,12 +41,12 @@ export interface TransitionData {
 }
 
 const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string; badge: string }> = {
-  backlog: { bg: "rgba(100, 116, 139, 0.12)", border: "#64748b", text: "#94a3b8", badge: "slate" },
-  todo: { bg: "rgba(59, 130, 246, 0.12)", border: "#3b82f6", text: "#60a5fa", badge: "blue" },
-  in_progress: { bg: "rgba(245, 158, 11, 0.12)", border: "#f59e0b", text: "#fbbf24", badge: "amber" },
-  review: { bg: "rgba(168, 85, 247, 0.12)", border: "#a855f7", text: "#c084fc", badge: "purple" },
-  done: { bg: "rgba(16, 185, 129, 0.12)", border: "#10b981", text: "#34d399", badge: "emerald" },
-  blocked: { bg: "rgba(239, 68, 68, 0.12)", border: "#ef4444", text: "#f87171", badge: "rose" },
+  backlog: { bg: "rgba(100, 116, 139, 0.15)", border: "#64748b", text: "#475569", badge: "slate" },
+  todo: { bg: "rgba(59, 130, 246, 0.15)", border: "#3b82f6", text: "#2563eb", badge: "blue" },
+  in_progress: { bg: "rgba(245, 158, 11, 0.15)", border: "#f59e0b", text: "#d97706", badge: "amber" },
+  review: { bg: "rgba(168, 85, 247, 0.15)", border: "#a855f7", text: "#9333ea", badge: "purple" },
+  done: { bg: "rgba(16, 185, 129, 0.15)", border: "#10b981", text: "#059669", badge: "emerald" },
+  blocked: { bg: "rgba(239, 68, 68, 0.15)", border: "#ef4444", text: "#dc2626", badge: "rose" },
 };
 
 const CATEGORY_ORDER: Record<string, number> = {
@@ -1101,7 +1101,7 @@ export function WorkflowVisualEditor({
                       left: `${node.x}px`,
                       top: `${node.y}px`,
                       borderColor: isSelected ? "var(--brand-purple)" : catStyle.border,
-                      backgroundColor: "var(--surface-card, #1e293b)",
+                      backgroundColor: "var(--surface-card)",
                       cursor: enableDragDrop ? "move" : "pointer",
                     }}
                     onMouseDown={(e) => startDragNode(e, node)}

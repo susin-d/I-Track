@@ -72,21 +72,23 @@ const notificationPreferenceOptions: { key: keyof NotificationPreferences; label
 
 const workspaceRouteRoots = new Set([
   "dashboard", "my-work", "notifications", "projects", "resources", "backlog",
-  "board", "cycles", "sprints", "sla", "sprint-risk", "tickets", "team",
+  "board", "cycles", "sprints", "sla", "sprint-risk", "sprint risk", "tickets", "team",
   "reports", "ai", "organization", "sessions", "settings", "audit-logs",
   "integrations", "import", "groups", "403", "500", "offline",
 ]);
 
 function workspaceBasename() {
-  const parts = window.location.pathname.split("/").filter(Boolean);
+  const rawParts = window.location.pathname.split("/").filter(Boolean);
+  const parts = rawParts.map((p) => decodeURIComponent(p));
   const savedSlug = localStorage.getItem("itrack_workspace_slug");
-  if (savedSlug && parts[0] === savedSlug) return `/${savedSlug}`;
-  if (parts.length > 1 && workspaceRouteRoots.has(parts[1])) return `/${parts[0]}`;
+  if (savedSlug && (parts[0] === savedSlug || rawParts[0] === savedSlug)) return `/${rawParts[0]}`;
+  if (parts.length > 1 && (workspaceRouteRoots.has(parts[1]) || workspaceRouteRoots.has(rawParts[1]))) return `/${rawParts[0]}`;
   if (
     parts.length === 1 &&
     !workspaceRouteRoots.has(parts[0]) &&
+    !workspaceRouteRoots.has(rawParts[0]) &&
     !["login", "register", "forgot-password", "reset-password", "accept-invite", "onboarding", "auth"].includes(parts[0])
-  ) return `/${parts[0]}`;
+  ) return `/${rawParts[0]}`;
   return "/";
 }
 
@@ -1297,13 +1299,17 @@ function AppRoutes({
         path="/sprints/new"
         element={<FormPage type="sprint" toast={toast} />}
       />
+      <Route path="/sprints/risk" element={<RiskPage />} />
+      <Route path="/sprints/sprint-risk" element={<RiskPage />} />
+      <Route path="/sprints/sprint risk" element={<RiskPage />} />
+      <Route path="/sprint-risk" element={<RiskPage />} />
+      <Route path="/sprint risk" element={<RiskPage />} />
       <Route path="/sprints/:sprintId" element={<SprintDetail />} />
       <Route path="/sprints/:sprintId/risk" element={<RiskPage />} />
       <Route
         path="/sprints/:sprintId/complete"
         element={<CompleteSprint toast={toast} />}
       />
-      <Route path="/sprint-risk" element={<RiskPage />} />
       <Route path="/tickets" element={<TicketList />} />
       <Route
         path="/tickets/new"
@@ -2592,15 +2598,21 @@ function SprintDetail() {
   const { dashboard, tickets, mutate, role, toast } = useWorkspace();
   const nav = useNavigate();
 
-  const s = (dashboard?.sprints || []).find((x: any) => x._id === sprintId);
-  if (!s)
+  if (sprintId === "risk" || sprintId === "sprint-risk" || sprintId === "sprint risk") {
+    return <RiskPage />;
+  }
+
+  const s = (dashboard?.sprints || []).find((x: any) => String(x._id) === String(sprintId));
+  if (!s) {
+    const hasSprints = (dashboard?.sprints || []).length > 0;
     return (
       <Empty
         title="Sprint not found"
-        body="The requested sprint does not exist."
-        action={{ label: "Back to sprints", to: "/sprints" }}
+        body={hasSprints ? "The requested sprint does not exist." : "There are no sprints in this workspace yet."}
+        action={hasSprints ? { label: "Back to sprints", to: "/sprints" } : { label: "Create a sprint", to: "/sprints/new" }}
       />
     );
+  }
 
   const progress = s.plannedPoints
     ? Math.round((s.completedPoints / s.plannedPoints) * 100)
@@ -2886,13 +2898,16 @@ function CompleteSprint({ toast }: { toast: (s: string) => void }) {
 function RiskPage() {
   const { sprintId } = useParams();
   const { dashboard, tickets, mutate, toast, role } = useWorkspace();
+  const nav = useNavigate();
   const [analysis, setAnalysis] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const isLeader = role === "admin" || role === "manager";
 
-  const s = sprintId
+  const isGenericPath = !sprintId || sprintId === "risk" || sprintId === "sprint-risk" || sprintId === "sprint risk";
+  const explicitSprint = sprintId && !isGenericPath
     ? (dashboard?.sprints || []).find((x: any) => String(x._id) === String(sprintId))
-    : (dashboard?.sprints || []).find((x: any) => x.status === "active") || dashboard?.sprints?.[0];
+    : null;
+  const s = explicitSprint || (dashboard?.sprints || []).find((x: any) => x.status === "active") || dashboard?.sprints?.[0];
   const sprintTickets = s ? tickets.filter((t) => t.sprintId === s._id) : [];
 
   const recalculateRisk = async () => {
@@ -2971,14 +2986,25 @@ function RiskPage() {
     recalculateRisk();
   }, [sprintId, s?._id]);
 
-  if (!s)
+  if (!dashboard?.sprints || dashboard.sprints.length === 0) {
+    return (
+      <Empty
+        title="No sprints found"
+        body="There are no sprints in this workspace yet. Create a sprint to calculate and view sprint risk analysis."
+        action={{ label: "Create a sprint", to: "/sprints/new" }}
+      />
+    );
+  }
+
+  if (!s) {
     return (
       <Empty
         title="Sprint not found"
-        body="The requested sprint does not exist."
-        action={{ label: "Back to sprints", to: "/sprints" }}
+        body="The requested sprint could not be found."
+        action={{ label: "View active sprint risk", to: "/sprint-risk" }}
       />
     );
+  }
 
   const displayScore = analysis ? analysis.risk.finalScore : s.riskScore;
   let riskTone = "green";
@@ -3052,6 +3078,20 @@ function RiskPage() {
         title="Delivery risk"
         desc={`Explainable signals for ${s.name}.`}
       >
+        {(dashboard?.sprints || []).length > 1 && (
+          <select
+            className="select"
+            value={s._id}
+            onChange={(e) => nav(`/sprints/${e.target.value}/risk`)}
+            style={{ width: "auto", display: "inline-block", marginRight: "8px" }}
+          >
+            {(dashboard?.sprints || []).map((sp: any) => (
+              <option key={sp._id} value={sp._id}>
+                {sp.name} ({sp.status})
+              </option>
+            ))}
+          </select>
+        )}
         <button className="btn" onClick={recalculateRisk} disabled={loading}>
           <Icons.RefreshCw className={loading ? "spin" : ""} />
           Recalculate
