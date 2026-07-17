@@ -1,11 +1,14 @@
 import cors from "cors";
 import express from "express";
-import rateLimit from "express-rate-limit";
-import helmet from "helmet";
+import type { RequestHandler } from "express";
+import { rateLimit } from "express-rate-limit";
+import helmetModule from "helmet";
 import morgan from "morgan";
 import { env } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./middleware/errors.js";
 import { registerRoutes } from "./routes/index.js";
+
+const helmet = helmetModule as unknown as () => RequestHandler;
 
 export function createApp() {
   const app = express();
