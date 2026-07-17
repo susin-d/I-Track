@@ -4,6 +4,7 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { env } from "../config/env.js";
+import { ACCESS_COOKIE, readCookie } from "../lib/authCookies.js";
 import { invalidateWorkspaceMembership, requireAuth, requireWorkspace, type AuthRequest } from "../middleware/auth.js";
 import { Organization } from "../models/Organization.js";
 import { Project } from "../models/Project.js";
@@ -24,8 +25,9 @@ function inviteUrl(req: any, token: string) { const origin = req.get("origin") |
 
 function optionalAuth(req: AuthRequest) {
   const header = req.headers.authorization;
-  if (!header?.startsWith("Bearer ")) return;
-  try { req.user = jwt.verify(header.slice(7), env.jwtSecret) as AuthRequest["user"]; } catch { /* public new-user invite flow */ }
+  const token = header?.startsWith("Bearer ") ? header.slice(7) : readCookie(req.headers.cookie, ACCESS_COOKIE);
+  if (!token) return;
+  try { req.user = jwt.verify(token, env.jwtSecret) as AuthRequest["user"]; } catch { /* public new-user invite flow */ }
 }
 
 router.get("/workspaces", requireAuth, async (req: AuthRequest, res) => {
