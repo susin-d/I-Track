@@ -824,7 +824,7 @@ export function CompleteSprint({ toast }: { toast: (s: string) => void }) {
             value={destinationSprintId}
             onChange={(e) => setDestinationSprintId(e.target.value)}
           >
-            <option value="">Backlog</option>
+            <option value="">No sprint</option>
             {otherSprints.map((os: any) => (
               <option key={os._id} value={os._id}>
                 {os.name}

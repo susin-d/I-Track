@@ -77,7 +77,7 @@ export function FormPage({
   type: "project" | "sprint" | "ticket" | "invite";
   toast: (s: string) => void;
 }) {
-  const { dashboard, refetch, role, labelOptions } = useWorkspace();
+  const { dashboard, refetch, role, labelOptions, resources } = useWorkspace();
   const nav = useNavigate();
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState("");
@@ -182,7 +182,7 @@ export function FormPage({
             dueDate: values.get("dueDate"),
             status: "Backlog",
             acceptanceCriteria: [],
-            epic: "Product backlog",
+            epic: values.get("epic") || "Product backlog",
             labels: ticketLabels,
             blocked: false,
             dependencies: [],
@@ -279,6 +279,15 @@ export function FormPage({
                 <option value="">Backlog</option>
                 {sprints.map((sprint: any) => (
                   <option key={sprint._id} value={sprint._id}>{sprint.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Epic</span>
+              <select name="epic" defaultValue="Product backlog">
+                <option value="Product backlog">Product backlog</option>
+                {(resources?.epic || []).map((epic: any) => (
+                  <option key={epic._id || epic.id} value={epic.name}>{epic.name}</option>
                 ))}
               </select>
             </label>

@@ -29,6 +29,7 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
     role,
     user: currentUser,
     labelOptions,
+    resources,
   } = useWorkspace();
   const [tab, setTab] = useState("comments");
 
@@ -702,15 +703,20 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
               disabled={!isLeader}
             />
           </div>
-          {raw.epic && (
-            <div className="detail-row epic-detail-row">
-              <span>Epic</span>
-              <span className="epic-breadcrumb">
-                <Icons.Layers size={12} />
-                {raw.epic}
-              </span>
-            </div>
-          )}
+          <div className="detail-row">
+            <span>Epic</span>
+            <select
+              value={raw.epic || "Product backlog"}
+              onChange={(e) => updateField({ epic: e.target.value })}
+            >
+              <option value="Product backlog">Product backlog</option>
+              {(resources?.epic || []).map((epic: any) => (
+                <option key={epic._id || epic.id} value={epic.name}>
+                  {epic.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {raw.epic && (() => {
             const siblings = (dashboard?.tickets || []).filter(
