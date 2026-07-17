@@ -2881,8 +2881,8 @@ function SprintDetail() {
     );
   }
 
-  const progress = s.plannedPoints
-    ? Math.round((s.completedPoints / s.plannedPoints) * 100)
+  const progress = Number(s.plannedPoints) > 0
+    ? Math.round(((Number(s.completedPoints) || 0) / Number(s.plannedPoints)) * 100)
     : 0;
 
   // Time remaining
@@ -3088,8 +3088,8 @@ function CompleteSprint({ toast }: { toast: (s: string) => void }) {
     (sum, t) => sum + (t.points || 0),
     0,
   );
-  const completionRate = s.plannedPoints
-    ? Math.round((completedPoints / s.plannedPoints) * 100)
+  const completionRate = Number(s.plannedPoints) > 0
+    ? Math.round((completedPoints / Number(s.plannedPoints)) * 100)
     : 0;
 
   // Get other sprints for moving work to
@@ -7327,8 +7327,8 @@ function SprintsLive({
       <div className="sprint-list">
         {items.length ? (
           items.map((s: any) => {
-            const progress = s.plannedPoints
-              ? Math.round((s.completedPoints / s.plannedPoints) * 100)
+            const progress = Number(s.plannedPoints) > 0
+              ? Math.round(((Number(s.completedPoints) || 0) / Number(s.plannedPoints)) * 100)
               : 0;
             return (
               <article
