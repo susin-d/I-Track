@@ -7139,10 +7139,180 @@ function SlaPage({ toast }: { toast: (s: string) => void }) {
   );
 }
 
+function MiniDatePicker({
+  name,
+  label,
+  value,
+  onChange,
+  required,
+  disabled
+}: {
+  name: string;
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  required?: boolean;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const today = new Date();
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth());
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  useEffect(() => {
+    if (value) {
+      const parsed = new Date(value + "T00:00:00");
+      if (!isNaN(parsed.getTime())) {
+        setYear(parsed.getFullYear());
+        setMonth(parsed.getMonth());
+      }
+    }
+  }, [value, open]);
+
+  const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+  const firstWeekday = (y: number, m: number) => new Date(y, m, 1).getDay();
+  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const dayNames = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+  const selectedDate = value ? new Date(value + "T00:00:00") : null;
+
+  const handlePrevMonth = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (month === 0) { setYear(y => y - 1); setMonth(11); }
+    else setMonth(m => m - 1);
+  };
+  const handleNextMonth = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (month === 11) { setYear(y => y + 1); setMonth(0); }
+    else setMonth(m => m + 1);
+  };
+  const handleSelectDay = (day: number) => {
+    const mm = String(month + 1).padStart(2, "0");
+    const dd = String(day).padStart(2, "0");
+    onChange(`${year}-${mm}-${dd}`);
+    setOpen(false);
+  };
+
+  return (
+    <div className="field" ref={containerRef} style={{ position: "relative" }}>
+      <span>{label}</span>
+      <input type="hidden" name={name} value={value} required={required} />
+      <button
+        type="button"
+        className="btn"
+        disabled={disabled}
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: "100%",
+          textAlign: "left",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          height: "40px",
+          background: "var(--surface-2, #27272a)",
+          border: "1px solid var(--border, #3f3f46)",
+          color: value ? "var(--text)" : "var(--muted)",
+          padding: "0 12px",
+          borderRadius: "8px",
+          cursor: disabled ? "not-allowed" : "pointer"
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <Icons.CalendarDays size={15} style={{ color: "var(--muted)" }} />
+          {value && selectedDate && !isNaN(selectedDate.getTime())
+            ? selectedDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+            : "Select date"}
+        </div>
+        {value && !disabled && (
+          <span
+            role="button"
+            aria-label="Clear date"
+            onClick={e => { e.stopPropagation(); onChange(""); }}
+            style={{ opacity: 0.75, cursor: "pointer", fontSize: "14px" }}
+          >✕</span>
+        )}
+      </button>
+
+      {open && (
+        <div style={{
+          position: "absolute", bottom: "calc(100% + 6px)", left: 0, zIndex: 9999,
+          background: "var(--surface, #18181b)", border: "1px solid var(--border, #333)",
+          borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+          padding: "12px", width: 240,
+          animation: "fadeIn .15s ease"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <button type="button" onClick={handlePrevMonth} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted,#888)", padding: "2px 6px", borderRadius: 6, fontSize: 16 }}>‹</button>
+            <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text,#e5e7eb)" }}>{monthNames[month]} {year}</span>
+            <button type="button" onClick={handleNextMonth} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted,#888)", padding: "2px 6px", borderRadius: 6, fontSize: 16 }}>›</button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
+            {dayNames.map(d => (
+              <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 600, color: "var(--text-muted,#888)", padding: "2px 0" }}>{d}</div>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+            {Array.from({ length: firstWeekday(year, month) }).map((_, i) => (
+              <div key={`blank-${i}`} />
+            ))}
+            {Array.from({ length: daysInMonth(year, month) }, (_, i) => i + 1).map(day => {
+              const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+              const isSelected = selectedDate && day === selectedDate.getDate() && month === selectedDate.getMonth() && year === selectedDate.getFullYear();
+              return (
+                <button
+                  type="button"
+                  key={day}
+                  onClick={() => handleSelectDay(day)}
+                  style={{
+                    border: "none", background: isSelected ? "var(--accent,#7c3aed)" : isToday ? "var(--accent-muted,rgba(124,58,237,0.18))" : "transparent",
+                    color: isSelected ? "#fff" : isToday ? "var(--accent,#7c3aed)" : "var(--text,#e5e7eb)",
+                    borderRadius: 6, padding: "4px 0", cursor: "pointer", fontSize: 12, fontWeight: isSelected || isToday ? 700 : 400,
+                    transition: "background .12s",
+                  }}
+                  onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = "var(--accent-muted,rgba(124,58,237,0.18))"; }}
+                  onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = isToday ? "var(--accent-muted,rgba(124,58,237,0.18))" : "transparent"; }}
+                >{day}</button>
+              );
+            })}
+          </div>
+          <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={() => { const t = new Date(); setYear(t.getFullYear()); setMonth(t.getMonth()); handleSelectDay(t.getDate()); }}
+              style={{ fontSize: 11, background: "none", border: "none", color: "var(--accent,#7c3aed)", cursor: "pointer", fontWeight: 600 }}
+            >Today</button>
+            {value && (
+              <button
+                type="button"
+                onClick={() => { onChange(""); setOpen(false); }}
+                style={{ fontSize: 11, background: "none", border: "none", color: "var(--text-muted,#888)", cursor: "pointer" }}
+              >Clear</button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CyclesLive({ toast }: { toast: (s: string) => void }) {
   const { dashboard, refetch, role } = useWorkspace();
   const [creating, setCreating] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
   const cycles = dashboard?.cycles || [];
   const sprints = dashboard?.sprints || [];
   const isLeader = ["admin", "manager"].includes(role);
@@ -7152,6 +7322,13 @@ function CyclesLive({ toast }: { toast: (s: string) => void }) {
     (sum: number, cycle: any) => sum + (cycle.sprints || []).reduce((cycleSum: number, sprint: any) => cycleSum + (sprint.plannedPoints || 0), 0),
     0,
   );
+
+  useEffect(() => {
+    if (!isCreateOpen) {
+      setStartDate("");
+      setEndDate("");
+    }
+  }, [isCreateOpen]);
 
   const createCycle = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -7171,6 +7348,8 @@ function CyclesLive({ toast }: { toast: (s: string) => void }) {
         }),
       });
       form.reset();
+      setStartDate("");
+      setEndDate("");
       toast("Cycle created");
       setIsCreateOpen(false);
       await refetch();
@@ -7239,9 +7418,9 @@ function CyclesLive({ toast }: { toast: (s: string) => void }) {
           </div>
           <div className="cycle-list">
             {cycles.length ? cycles.map((cycle: any) => {
-              const planned = (cycle.sprints || []).reduce((sum: number, sprint: any) => sum + (sprint.plannedPoints || 0), 0);
-              const completed = (cycle.sprints || []).reduce((sum: number, sprint: any) => sum + (sprint.completedPoints || 0), 0);
-              const progress = planned ? Math.round((completed / planned) * 100) : 0;
+              const planned = (cycle.sprints || []).reduce((sum: number, sprint: any) => sum + (Number(sprint.plannedPoints) || 0), 0);
+              const completed = (cycle.sprints || []).reduce((sum: number, sprint: any) => sum + (Number(sprint.completedPoints) || 0), 0);
+              const progress = planned > 0 ? Math.round((completed / planned) * 100) : 0;
               return (
                 <article className="cycle-card" key={cycle._id}>
                   <div className="cycle-card-head">
@@ -7314,14 +7493,22 @@ function CyclesLive({ toast }: { toast: (s: string) => void }) {
                 </select>
               </label>
               <div className="cycle-date-fields" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                <label className="field">
-                  <span>Starts</span>
-                  <input name="startDate" type="date" required disabled={creating} />
-                </label>
-                <label className="field">
-                  <span>Ends</span>
-                  <input name="endDate" type="date" required disabled={creating} />
-                </label>
+                <MiniDatePicker
+                  name="startDate"
+                  label="Starts"
+                  value={startDate}
+                  onChange={setStartDate}
+                  required
+                  disabled={creating}
+                />
+                <MiniDatePicker
+                  name="endDate"
+                  label="Ends"
+                  value={endDate}
+                  onChange={setEndDate}
+                  required
+                  disabled={creating}
+                />
               </div>
               <div className="field" style={{ marginBottom: "20px" }}>
                 <span>Sprints <small>{sprints.length} available</small></span>
@@ -8298,9 +8485,9 @@ function DashboardLive() {
   const summary = d.summary || {};
   const active =
     (d.sprints || []).find((s: any) => s.status === "active") || d.sprints?.[0];
-  const planned = active?.plannedPoints || 0;
-  const completed = active?.completedPoints || 0;
-  const progress = planned ? Math.round((completed / planned) * 100) : 0;
+  const planned = Number(active?.plannedPoints) || 0;
+  const completed = Number(active?.completedPoints) || 0;
+  const progress = planned > 0 ? Math.round((completed / planned) * 100) : 0;
   const recommendation = d.recommendation || {};
   const attentionTickets = Array.from(
     new Map(
@@ -8313,6 +8500,7 @@ function DashboardLive() {
         .map((ticket: Ticket) => [ticket.id, ticket]),
     ).values(),
   ).slice(0, 4);
+
   const metrics = [
     {
       label: "Needs attention",
@@ -8347,6 +8535,82 @@ function DashboardLive() {
       to: "/projects",
     },
   ];
+
+  // 1. Status Distribution for Active Sprint
+  const activeSprintTickets = active ? tickets.filter((t: any) => String(t.sprintId) === String(active._id)) : tickets;
+  const statusCounts: Record<string, number> = {
+    "To Do": 0,
+    "In Progress": 0,
+    "In Review": 0,
+    "Done": 0,
+  };
+  activeSprintTickets.forEach((t: any) => {
+    const status = t.status || "To Do";
+    if (statusCounts[status] !== undefined) {
+      statusCounts[status] += t.points || 1;
+    }
+  });
+  const statusData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
+  const statusColors: Record<string, string> = {
+    "To Do": "#4f86f7",
+    "In Progress": "#a47bef",
+    "In Review": "#f28c28",
+    "Done": "#4cc38a",
+  };
+
+  // 2. Ticket Priority Distribution
+  const priorityCounts: Record<string, number> = {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+  };
+  tickets.forEach((t: any) => {
+    const p = (t.priority || "medium").toLowerCase();
+    if (priorityCounts[p] !== undefined) {
+      priorityCounts[p] += 1;
+    }
+  });
+  const priorityData = Object.entries(priorityCounts).map(([name, value]) => ({
+    name: name.charAt(0).toUpperCase() + name.slice(1),
+    value
+  }));
+  const priorityColors: Record<string, string> = {
+    "Critical": "#e95a5a",
+    "High": "#f28c28",
+    "Medium": "#f4c430",
+    "Low": "#4cc38a",
+  };
+
+  // 3. Team capacity & Sprint Points Chart Data
+  const teamChartData = people.map((p: any) => {
+    const userTickets = activeSprintTickets.filter(
+      (t: any) => String(t.assigneeId) === String(p.id) || t.assignee === p.name
+    );
+    const storyPoints = userTickets.reduce((sum: number, t: any) => sum + (t.points || 0), 0);
+    return {
+      name: p.name.split(" ")[0],
+      "Story Points": storyPoints,
+      "Weekly Load %": p.load,
+    };
+  });
+
+  const CustomTooltip = ({ active: tooltipActive, payload, label }: any) => {
+    if (tooltipActive && payload && payload.length) {
+      return (
+        <div className="custom-tooltip">
+          <p className="custom-tooltip-title">{label}</p>
+          {payload.map((item: any) => (
+            <p key={item.name} className="custom-tooltip-value" style={{ color: item.color || item.fill }}>
+              {item.name}: {item.value}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <>
       <PageHead
@@ -8374,6 +8638,7 @@ function DashboardLive() {
       <div className="metrics dashboard-metrics">
         {metrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}
       </div>
+
       <section className="card dashboard-focus">
         <CardTitle
           title="Focus for today"
@@ -8407,61 +8672,127 @@ function DashboardLive() {
           </div>
         )}
       </section>
+
       <div className="dashboard-grid">
-        <section className="card span-2">
-          <CardTitle title="Sprint risk" sub="Risk score by sprint" />
+        {/* Row 1: Sprint Risk Trend (span-8) & Sprint Status Distribution (span-4) */}
+        <section className="card span-8">
+          <CardTitle title="Sprint Risk Trend" sub="Deterministic delivery risk score across recent sprints" />
           <div className="chart">
-            <ResponsiveContainer>
-              <AreaChart data={risk}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={risk} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="riskGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--purple)" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="var(--purple)" stopOpacity={0.0}/>
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="4 4" vertical={false} />
-                <XAxis dataKey="n" />
-                <YAxis />
-                <Tooltip />
+                <XAxis dataKey="n" tickLine={false} />
+                <YAxis axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} />
                 <Area
                   type="monotone"
                   dataKey="v"
-                  stroke="#A47BEF"
+                  name="Risk Score"
+                  stroke="var(--purple)"
                   strokeWidth={3}
-                  fill="#A47BEF33"
+                  fill="url(#riskGrad)"
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </section>
-        <section className="card">
+
+        <section className="card span-4">
           <CardTitle
-            title="Active sprint"
-            sub={
-              active
-                ? `${active.name} · ends ${new Date(active.endDate).toLocaleDateString()}`
-                : "No active sprint"
-            }
+            title="Sprint Status Breakdown"
+            sub={active ? `${active.name} Story Points` : "All Tickets Breakdown"}
           />
-          <div className="ring-wrap">
-            <div
-              className="score-ring"
-              style={{
-                background: `conic-gradient(var(--lime) 0 ${progress}%,var(--border) ${progress}%)`,
-              }}
-            >
-              <strong>{progress}%</strong>
-              <span>complete</span>
+          <div className="chart" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '240px' }}>
+            <ResponsiveContainer width="100%" height="70%">
+              <PieChart>
+                <Pie
+                  data={statusData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={75}
+                  paddingAngle={4}
+                  dataKey="value"
+                >
+                  {statusData.map((entry) => (
+                    <Cell key={`cell-${entry.name}`} fill={statusColors[entry.name]} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: '11px', width: '100%', padding: '0 10px' }}>
+              {statusData.map((entry) => (
+                <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: statusColors[entry.name] }}></span>
+                  <span style={{ color: 'var(--muted)' }}>{entry.name}</span>
+                  <span style={{ marginLeft: 'auto', fontWeight: 600 }}>{entry.value}</span>
+                </div>
+              ))}
             </div>
           </div>
-          <Progress value={progress} />
-          <div className="split">
-            <span>
-              <b>{completed}</b> completed
-            </span>
-            <span>
-              <b>{Math.max(0, planned - completed)}</b> remaining
-            </span>
+        </section>
+
+        {/* Row 2: Team Capacity vs Story Points Assigned (span-8) & Ticket Priorities (span-4) */}
+        <section className="card span-8">
+          <CardTitle title="Team Assigned Story Points" sub="Story Points assigned vs. Current load %" />
+          <div className="chart">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={teamChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="4 4" vertical={false} />
+                <XAxis dataKey="name" tickLine={false} />
+                <YAxis axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="Story Points" fill="var(--purple)" radius={[4, 4, 0, 0]} barSize={24} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </section>
-        <section className="card span-2">
+
+        <section className="card span-4">
+          <CardTitle title="Priority Distribution" sub="Workspace ticket priority volumes" />
+          <div className="chart" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '240px' }}>
+            <ResponsiveContainer width="100%" height="70%">
+              <PieChart>
+                <Pie
+                  data={priorityData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={75}
+                  paddingAngle={4}
+                  dataKey="value"
+                >
+                  {priorityData.map((entry) => (
+                    <Cell key={`cell-${entry.name}`} fill={priorityColors[entry.name]} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: '11px', width: '100%', padding: '0 10px' }}>
+              {priorityData.map((entry) => (
+                <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: priorityColors[entry.name] }}></span>
+                  <span style={{ color: 'var(--muted)' }}>{entry.name}</span>
+                  <span style={{ marginLeft: 'auto', fontWeight: 600 }}>{entry.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Row 3: Detailed Team Workload List (span-8) & AI Recommendation (span-4) */}
+        <section className="card span-8">
           <CardTitle
-            title="Team workload"
-            sub="Capacity from workspace users"
+            title="Active Team Load & Capacity"
+            sub="Current weekly hours allocated out of workspace users"
           />
           <div className="workloads">
             {people.map((p: any) => (
@@ -8480,7 +8811,8 @@ function DashboardLive() {
             ))}
           </div>
         </section>
-        <section className="card insight">
+
+        <section className="card insight span-4">
           <div className="insight-icon">
             <Icons.Sparkles />
           </div>
