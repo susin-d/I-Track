@@ -268,87 +268,165 @@ export function LabelPicker({
   disabled?: boolean;
   label?: string;
 }) {
+  const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState("");
-  const listId = `label-suggestions-${React.useId().replace(/:/g, "")}`;
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
   const normalizedLabels = normalizeLabels(labels);
-  const availableSuggestions = normalizeLabels(suggestions).filter(
-    (suggestion) =>
-      !normalizedLabels.some(
-        (existing) => existing.toLocaleLowerCase() === suggestion.toLocaleLowerCase(),
-      ),
-  );
+  const normalizedSuggestions = normalizeLabels(suggestions);
+
+  // Close dropdown on outside click
+  React.useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setDraft("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const toggle = (option: string) => {
+    const key = option.toLocaleLowerCase();
+    const already = normalizedLabels.some((l) => l.toLocaleLowerCase() === key);
+    if (already) {
+      onChange(normalizedLabels.filter((l) => l.toLocaleLowerCase() !== key));
+    } else {
+      onChange(normalizeLabels([...normalizedLabels, option]));
+    }
+  };
 
   const remove = (labelToRemove: string) => {
     const key = labelToRemove.toLocaleLowerCase();
-    onChange(
-      normalizedLabels.filter((item) => item.toLocaleLowerCase() !== key),
-    );
+    onChange(normalizedLabels.filter((item) => item.toLocaleLowerCase() !== key));
   };
 
-  const commit = (value: string) => {
+  const commitDraft = (value: string) => {
     const nextLabel = value.replace(/,$/, "").trim();
     setDraft("");
     if (!nextLabel) return;
     onChange(normalizeLabels([...normalizedLabels, nextLabel]));
   };
 
+  // Filtered suggestions for search
+  const filtered = normalizedSuggestions.filter((s) =>
+    s.toLocaleLowerCase().includes(draft.toLocaleLowerCase()),
+  );
+
   return (
-    <div className="label-picker">
+    <div className="label-picker" ref={wrapperRef}>
       <span className="label-picker-title">{label}</span>
-      {normalizedLabels.length > 0 && (
-        <div className="label-picker-chips">
-          {normalizedLabels.map((item) => (
-            <span className="label-chip" key={item}>
-              {item}
-              {!disabled && (
-                <button
-                  type="button"
-                  className="label-chip-remove"
-                  onClick={() => remove(item)}
-                  aria-label={`Remove label ${item}`}
-                >
-                  <Icons.X size={12} />
-                </button>
-              )}
-            </span>
-          ))}
-        </div>
-      )}
+
+      {/* Trigger button that looks like a dropdown */}
       {disabled ? (
-        normalizedLabels.length === 0 && (
+        normalizedLabels.length === 0 ? (
           <span className="label-picker-empty">No labels</span>
+        ) : (
+          <div className="label-picker-chips">
+            {normalizedLabels.map((item) => (
+              <span className="label-chip" key={item}>{item}</span>
+            ))}
+          </div>
         )
       ) : (
-        <>
-          <input
-            className="label-picker-input"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === ",") {
-                event.preventDefault();
-                commit(draft);
-              } else if (
-                event.key === "Backspace" &&
-                !draft &&
-                normalizedLabels.length > 0
-              ) {
-                remove(normalizedLabels[normalizedLabels.length - 1]);
-              }
-            }}
-            onBlur={() => {
-              if (draft.trim()) commit(draft);
-            }}
-            placeholder="Type a label and press Enter"
-            list={listId}
-            aria-label={label}
-          />
-          <datalist id={listId}>
-            {availableSuggestions.map((suggestion) => (
-              <option value={suggestion} key={suggestion} />
-            ))}
-          </datalist>
-        </>
+        <div className="label-dropdown-trigger-wrap">
+          <button
+            type="button"
+            className={`label-dropdown-trigger${open ? " open" : ""}`}
+            onClick={() => setOpen((v) => !v)}
+            aria-haspopup="listbox"
+            aria-expanded={open}
+          >
+            <span className="label-dropdown-trigger-text">
+              {normalizedLabels.length > 0 ? (
+                <span className="label-picker-chips label-picker-chips--inline">
+                  {normalizedLabels.map((item) => (
+                    <span className="label-chip label-chip--sm" key={item}>
+                      {item}
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        className="label-chip-remove"
+                        onClick={(e) => { e.stopPropagation(); remove(item); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); remove(item); } }}
+                        aria-label={`Remove label ${item}`}
+                      >
+                        <Icons.X size={10} />
+                      </span>
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                <span className="label-dropdown-placeholder">Select labels…</span>
+              )}
+            </span>
+            <Icons.ChevronDown size={14} className="label-dropdown-chevron" />
+          </button>
+
+          {open && (
+            <div className="label-dropdown-panel" role="listbox" aria-multiselectable="true" aria-label={label}>
+              {/* Search input inside panel */}
+              <div className="label-dropdown-search">
+                <Icons.Search size={13} />
+                <input
+                  autoFocus
+                  className="label-dropdown-search-input"
+                  placeholder="Search or create label…"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (draft.trim()) {
+                        commitDraft(draft);
+                      }
+                    } else if (e.key === "Escape") {
+                      setOpen(false);
+                      setDraft("");
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="label-dropdown-options">
+                {filtered.length === 0 && draft.trim() ? (
+                  <button
+                    type="button"
+                    className="label-dropdown-option label-dropdown-create"
+                    onMouseDown={(e) => { e.preventDefault(); commitDraft(draft); }}
+                  >
+                    <Icons.Plus size={13} />
+                    Create <strong>"{draft.trim()}"</strong>
+                  </button>
+                ) : filtered.length === 0 ? (
+                  <span className="label-dropdown-empty">No labels available</span>
+                ) : (
+                  filtered.map((option) => {
+                    const checked = normalizedLabels.some(
+                      (l) => l.toLocaleLowerCase() === option.toLocaleLowerCase()
+                    );
+                    return (
+                      <button
+                        type="button"
+                        key={option}
+                        role="option"
+                        aria-selected={checked}
+                        className={`label-dropdown-option${checked ? " selected" : ""}`}
+                        onMouseDown={(e) => { e.preventDefault(); toggle(option); }}
+                      >
+                        <span className="label-dropdown-check">
+                          {checked && <Icons.Check size={11} />}
+                        </span>
+                        {option}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

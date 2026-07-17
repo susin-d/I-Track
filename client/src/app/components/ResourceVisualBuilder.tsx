@@ -1033,15 +1033,6 @@ export function ResourceVisualModal({ kind, initialData, onSave, onClose }: Visu
   return (
     <ModalOverlay onClose={onClose} ariaLabel={`${initialData ? "Edit" : "Create"} ${kindTitle}`}>
       <div className="card rv-modal-card">
-        <button
-          type="button"
-          className="icon-btn modal-close"
-          onClick={onClose}
-          aria-label="Close modal"
-          style={{ position: "absolute", top: "12px", right: "12px", zIndex: 20 }}
-        >
-          <Icons.X size={16} />
-        </button>
         <form onSubmit={handleSubmit} style={{ overflowY: "auto", paddingRight: "8px", display: "flex", flexDirection: "column", gap: "12px", minHeight: 0 }}>
           <div>
             <h3 style={{ margin: "0 0 4px", fontSize: "18px" }}>{initialData ? "Edit" : "Create"} {kindTitle}</h3>
@@ -1102,7 +1093,16 @@ export function ResourceVisualModal({ kind, initialData, onSave, onClose }: Visu
           </div>
         </form>
 
-        <div style={{ background: "var(--surface-subtle)", borderRadius: "10px", padding: "16px", border: "1px solid var(--border)", display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <div style={{ background: "var(--surface-subtle)", borderRadius: "10px", padding: "16px", border: "1px solid var(--border)", display: "flex", flexDirection: "column", minHeight: 0, position: "relative" }}>
+          <button
+            type="button"
+            className="icon-btn modal-close"
+            onClick={onClose}
+            aria-label="Close modal"
+            style={{ position: "absolute", top: "12px", right: "12px", zIndex: 20 }}
+          >
+            <Icons.X size={16} />
+          </button>
           <h4 style={{ margin: "0 0 12px", fontSize: "13px", color: "var(--muted)", textTransform: "uppercase" }}>Live Preview</h4>
           <ResourceVisualPreview kind={kind} item={{ name, description, key, config }} />
           <div style={{ marginTop: "auto", fontSize: "11px", color: "var(--muted)", padding: "10px", background: "var(--surface)", borderRadius: "6px", border: "1px solid var(--border)" }}>
