@@ -1,6 +1,7 @@
 import React from "react";
 import { NavLink, useSearchParams } from "react-router-dom";
 import * as Icons from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 export function PageHead({
   eyebrow,
@@ -35,9 +36,16 @@ export function FilterBar({
   const availableLabels = normalizeLabels(labelOptions).sort((a, b) =>
     a.localeCompare(b),
   );
+  const filterKeys = ["q", "label", "filter", "sort"];
+  const hasFilters = filterKeys.some((key) => Boolean(params.get(key)) && !(key === "sort" && params.get(key) === "asc"));
   const set = (key: string, value: string) => {
     const next = new URLSearchParams(params);
     value ? next.set(key, value) : next.delete(key);
+    setParams(next);
+  };
+  const clearFilters = () => {
+    const next = new URLSearchParams(params);
+    filterKeys.forEach((key) => next.delete(key));
     setParams(next);
   };
   return (
@@ -103,6 +111,106 @@ export function FilterBar({
       >
         {params.get("view") === "grid" ? <Icons.List /> : <Icons.LayoutGrid />}
       </button>
+      {hasFilters && (
+        <button className="text-btn filter-clear" onClick={clearFilters}>
+          <Icons.RotateCcw />
+          Clear filters
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function MetricCard({
+  label,
+  value,
+  sub,
+  icon: Icon,
+  tone = "purple",
+  to,
+}: {
+  label: string;
+  value: React.ReactNode;
+  sub: React.ReactNode;
+  icon?: LucideIcon;
+  tone?: string;
+  to?: string;
+}) {
+  const content = (
+    <>
+      <div>
+        <span>{label}</span>
+        <strong>{value}</strong>
+        <small>{sub}</small>
+      </div>
+      {Icon && (
+        <b className={tone}>
+          <Icon />
+        </b>
+      )}
+      {to && <Icons.ArrowUpRight className="metric-link-arrow" aria-hidden="true" />}
+    </>
+  );
+
+  return to ? (
+    <NavLink className="metric metric-link" to={to}>
+      {content}
+    </NavLink>
+  ) : (
+    <article className="metric">{content}</article>
+  );
+}
+
+export function ViewToggle({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string; icon?: LucideIcon }>;
+}) {
+  return (
+    <div className="segmented" role="group" aria-label="View options">
+      {options.map(({ value: optionValue, label, icon: Icon }) => (
+        <button
+          key={optionValue}
+          className={value === optionValue ? "active" : ""}
+          onClick={() => onChange(optionValue)}
+          aria-pressed={value === optionValue}
+        >
+          {Icon && <Icon />}
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function LoadingState({ label = "Loading…" }: { label?: string }) {
+  return (
+    <div className="state-panel loading-state" role="status" aria-live="polite">
+      <span className="loading-spinner" aria-hidden="true" />
+      <b>{label}</b>
+    </div>
+  );
+}
+
+export function ErrorState({
+  title = "Something went wrong",
+  body,
+  action,
+}: {
+  title?: string;
+  body?: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="state-panel error-state" role="alert">
+      <Icons.AlertCircle aria-hidden="true" />
+      <b>{title}</b>
+      {body && <p>{body}</p>}
+      {action}
     </div>
   );
 }

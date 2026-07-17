@@ -35,11 +35,13 @@ import {
   Badge,
   CardTitle,
   Empty,
+  MetricCard,
   FilterBar,
   LabelChips,
   LabelPicker,
   PageHead,
   Progress,
+  ViewToggle,
 } from "./components/ui";
 import { cx, fmt } from "../utils/ui";
 import { CustomMarkdown } from "./components/Markdown";
@@ -392,7 +394,7 @@ function Shell({
           {nav
             .filter((g) => !g.admin || effectiveRole === "admin")
             .map((g) => (
-              <div className="nav-group" key={g.group}>
+              <div className={cx("nav-group", g.admin && "nav-group-admin")} key={g.group}>
                 <p>{g.group}</p>
                 {g.items.map(([path, Icon, label]) => {
                   return (
@@ -460,7 +462,7 @@ function Shell({
           >
             <Icons.Search size={17} />
             <span>Search anything</span>
-            <kbd>⌘ K</kbd>
+            <kbd>⌘ / Ctrl K</kbd>
           </button>
           {(effectiveRole === "admin" || effectiveRole === "manager") && (
             <button
@@ -1910,6 +1912,14 @@ function TicketTable({ rows }: { rows?: Ticket[] }) {
             <tr
               key={t.id}
               onClick={() => nav(`/tickets/${t.key}`)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  nav(`/tickets/${t.key}`);
+                }
+              }}
+              tabIndex={0}
+              aria-label={`Open ${t.key}: ${t.title}`}
               style={{ cursor: "pointer" }}
             >
               <td>
@@ -1977,9 +1987,11 @@ function TicketList() {
 function Board({
   toast,
   projectFilter,
+  ticketFilter,
 }: {
   toast: (s: string) => void;
   projectFilter?: string;
+  ticketFilter?: (ticket: Ticket) => boolean;
 }) {
   const {
     tickets: wsTickets,
@@ -1994,7 +2006,7 @@ function Board({
   const q = params.get("q") || "";
   const selectedLabel = params.get("label") || "";
   const [view, setView] = useState<"board" | "list">("board");
-  const [filters, setFilters] = useState(false);
+  const [filters, setFilters] = useState(true);
   const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
   const [draggedTicket, setDraggedTicket] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -2019,6 +2031,7 @@ function Board({
   // Filter tickets
   const filteredTickets = wsTickets.filter((t) => {
     if (projectFilter && t.project !== projectFilter) return false;
+    if (ticketFilter && !ticketFilter(t)) return false;
     const matchesQ = matchesTicket(t, q, selectedLabel);
     const matchesFilter = filter === "open" ? t.status !== "Done" : true;
     return matchesQ && matchesFilter;
@@ -2194,21 +2207,16 @@ function Board({
         />
       )}
       <div className="board-toolbar">
-        <div className="segmented">
-          <button
-            className={view === "board" ? "active" : ""}
-            onClick={() => setView("board")}
-          >
-            Board
-          </button>
-          <button
-            className={view === "list" ? "active" : ""}
-            onClick={() => setView("list")}
-          >
-            List
-          </button>
-        </div>
-        <span>{activeTickets.length} tickets</span>
+        <ViewToggle
+          value={view}
+          onChange={(next) => setView(next as "board" | "list")}
+          options={[
+            { value: "board", label: "Board", icon: Icons.Columns3 },
+            { value: "list", label: "List", icon: Icons.List },
+          ]}
+        />
+        <span className="board-ticket-count"><b>{activeTickets.length}</b> tickets</span>
+        <span className="board-save-note"><Icons.CloudCheck /> Changes save automatically</span>
         <div className="avatar-stack">
           {wsPeople.map((p) => (
             <Avatar key={p.email} name={p.name} color={p.color} />
@@ -2219,13 +2227,6 @@ function Board({
       {selectedTickets.length > 0 && (
         <div
           className="card bulk-actions"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            margin: "10px 0",
-            background: "#f3f0fc",
-            border: "1px solid #dcd3f9",
-          }}
         >
           <span>
             <b>{selectedTickets.length}</b> selected:{" "}
@@ -2307,6 +2308,7 @@ function Board({
                     <td>
                       <input
                         type="checkbox"
+                        aria-label={`Select ${t.key}`}
                         checked={selectedTickets.includes(t.id)}
                         onChange={() =>
                           setSelectedTickets((prev) =>
@@ -2338,12 +2340,16 @@ function Board({
                     <td>
                       <button
                         className="icon-btn"
+                        aria-label={`Move ${t.key} up`}
+                        title="Move ticket up"
                         onClick={() => changeRank(t.id, t.rank || 0, 1)}
                       >
                         <Icons.ChevronUp size={14} />
                       </button>
                       <button
                         className="icon-btn"
+                        aria-label={`Move ${t.key} down`}
+                        title="Move ticket down"
                         onClick={() => changeRank(t.id, t.rank || 0, -1)}
                       >
                         <Icons.ChevronDown size={14} />
@@ -2421,6 +2427,7 @@ function Board({
                       >
                         <input
                           type="checkbox"
+                          aria-label={`Select ${t.key}`}
                           checked={selectedTickets.includes(t.id)}
                           onChange={() =>
                             setSelectedTickets((prev) =>
@@ -2476,12 +2483,16 @@ function Board({
                       <div>
                         <button
                           className="icon-btn"
+                          aria-label={`Move ${t.key} up`}
+                          title="Move ticket up"
                           onClick={() => changeRank(t.id, t.rank || 0, 1)}
                         >
                           <Icons.ChevronUp size={14} />
                         </button>
                         <button
                           className="icon-btn"
+                          aria-label={`Move ${t.key} down`}
+                          title="Move ticket down"
                           onClick={() => changeRank(t.id, t.rank || 0, -1)}
                         >
                           <Icons.ChevronDown size={14} />
@@ -3052,77 +3063,111 @@ function RiskPage() {
 
 function MyWork() {
   const [view, setView] = useState("list");
+  const [scope, setScope] = useState("assigned");
   const [summary, setSummary] = useState<any>(null);
   const { tickets, labelOptions, dashboard, user } = useWorkspace();
+  const [params] = useSearchParams();
   const currentUserId = String(user?._id || user?.id || "");
+  const requestedScope = params.get("scope") || "assigned";
   useEffect(() => {
     api<any>("/my-work").then(setSummary).catch(() => setSummary(null));
   }, [dashboard]);
+  useEffect(() => {
+    setScope(requestedScope);
+  }, [requestedScope]);
   const formatHours = (hours: number) => `${Number.isInteger(hours) ? hours : hours.toFixed(1)}h`;
+  const assignedTickets = tickets.filter((ticket) => ticket.assigneeId === currentUserId);
+  const watchedTickets = tickets.filter((ticket) => ticket.watched && ticket.assigneeId !== currentUserId);
+  const attentionTickets = tickets.filter((ticket) =>
+    (ticket.assigneeId === currentUserId || ticket.watched) &&
+    (ticket.blocked || ["breached", "due_soon"].includes(ticket.slaStatus || "")),
+  );
+  const completedTickets = tickets.filter((ticket) =>
+    (ticket.assigneeId === currentUserId || ticket.watched) && ticket.status === "Done",
+  );
+  const visibleTickets = scope === "watched"
+    ? watchedTickets
+    : scope === "attention"
+      ? attentionTickets
+      : scope === "completed"
+        ? completedTickets
+        : assignedTickets;
   return (
     <>
       <PageHead
         title="My work"
         desc="Everything assigned to you, in one place."
       >
-        <div className="segmented">
-          <button
-            className={view === "list" ? "active" : ""}
-            onClick={() => setView("list")}
-          >
-            <Icons.List />
-            List
-          </button>
-          <button
-            className={view === "board" ? "active" : ""}
-            onClick={() => setView("board")}
-          >
-            <Icons.Columns3 />
-            Board
-          </button>
-        </div>
+        <ViewToggle
+          value={view}
+          onChange={setView}
+          options={[
+            { value: "list", label: "List", icon: Icons.List },
+            { value: "board", label: "Board", icon: Icons.Columns3 },
+          ]}
+        />
       </PageHead>
-      <div className="metrics compact">
-        <article className="metric">
-          <div>
-            <span>Assigned to me</span>
-            <strong>{summary?.assigned ?? 0}</strong>
-            <small>Across {summary?.projects ?? 0} projects</small>
-          </div>
-        </article>
-        <article className="metric">
-          <div>
-            <span>Due this week</span>
-            <strong>{summary?.dueThisWeek ?? 0}</strong>
-            <small>{summary?.dueThisWeekHighPriority ?? 0} high priority</small>
-          </div>
-        </article>
-        <article className="metric">
-          <div>
-            <span>Logged this sprint</span>
-            <strong>{formatHours(summary?.loggedHours ?? 0)}</strong>
-            <small>Of {summary?.capacity ?? user?.capacity ?? 0}h capacity</small>
-          </div>
-        </article>
-        <article className="metric">
-          <div>
-            <span>Watched</span>
-            <strong>{summary?.watched ?? 0}</strong>
-            <small>{summary?.watchedUpdatedToday ?? 0} updated today</small>
-          </div>
-        </article>
+      <div className="metrics compact work-metrics">
+        <MetricCard
+          label="Assigned to me"
+          value={assignedTickets.length}
+          sub={`Across ${summary?.projects ?? 0} projects`}
+          icon={Icons.CircleUserRound}
+          tone="purple"
+        />
+        <MetricCard
+          label="Needs attention"
+          value={attentionTickets.length}
+          sub={`${attentionTickets.filter((ticket) => ticket.blocked).length} blocked or at risk`}
+          icon={Icons.CircleAlert}
+          tone="red"
+        />
+        <MetricCard
+          label="Logged this sprint"
+          value={formatHours(summary?.loggedHours ?? 0)}
+          sub={`Of ${summary?.capacity ?? user?.capacity ?? 0}h capacity`}
+          icon={Icons.Clock3}
+          tone="blue"
+        />
+        <MetricCard
+          label="Watched"
+          value={watchedTickets.length}
+          sub={`${summary?.watchedUpdatedToday ?? 0} updated today`}
+          icon={Icons.Eye}
+          tone="green"
+        />
+      </div>
+      <div className="work-scope-bar">
+        <div>
+          <span className="eyebrow">WORK QUEUE</span>
+          <b>Choose a focus</b>
+        </div>
+        <div className="scope-tabs" role="tablist" aria-label="My work scope">
+          {[
+            ["assigned", "Assigned", assignedTickets.length],
+            ["attention", "Needs attention", attentionTickets.length],
+            ["watched", "Watched", watchedTickets.length],
+            ["completed", "Completed", completedTickets.length],
+          ].map(([value, label, count]) => (
+            <button
+              key={String(value)}
+              className={scope === value ? "active" : ""}
+              onClick={() => setScope(String(value))}
+              role="tab"
+              aria-selected={scope === value}
+            >
+              {label}<span>{count}</span>
+            </button>
+          ))}
+        </div>
       </div>
       <FilterBar placeholder="Search my work…" labelOptions={labelOptions} />
       {view === "list" ? (
         <section className="card no-pad">
-          <TicketTable
-            rows={tickets.filter(
-              (t) => t.assigneeId === currentUserId || t.watched,
-            )}
-          />
+          {visibleTickets.length ? <TicketTable rows={visibleTickets} /> : <Empty title="No work in this view" body="Try another focus or clear your filters." />}
         </section>
       ) : (
-        <Board toast={() => {}} />
+        <Board toast={() => {}} ticketFilter={(ticket) => visibleTickets.some((item) => item.id === ticket.id)} />
       )}
     </>
   );
@@ -5968,6 +6013,11 @@ function BacklogLive({
         )}
       </PageHead>
       <FilterBar placeholder="Search backlog…" labelOptions={labelOptions} />
+      <div className="queue-summary">
+        <span className="queue-summary-icon"><Icons.ListTodo /></span>
+        <span><b>{backlog.length} unplanned {backlog.length === 1 ? "ticket" : "tickets"}</b><small>Prioritize the next piece of work before it enters a sprint.</small></span>
+        <NavLink className="text-btn" to="/board?filter=open">Open delivery board <Icons.ArrowRight /></NavLink>
+      </div>
       <section className="sprint-group">
         <div className="sprint-group-head">
           <div>
@@ -6997,42 +7047,50 @@ function DashboardLive() {
   const completed = active?.completedPoints || 0;
   const progress = planned ? Math.round((completed / planned) * 100) : 0;
   const recommendation = d.recommendation || {};
+  const attentionTickets = Array.from(
+    new Map(
+      tickets
+        .filter((ticket: Ticket) => ticket.blocked || ["breached", "due_soon"].includes(ticket.slaStatus || ""))
+        .sort((a: Ticket, b: Ticket) => {
+          const priorityRank = { critical: 0, high: 1, medium: 2, low: 3 };
+          return priorityRank[a.priority] - priorityRank[b.priority];
+        })
+        .map((ticket: Ticket) => [ticket.id, ticket]),
+    ).values(),
+  ).slice(0, 4);
   const metrics = [
-    [
-      "Blocked tasks",
-      summary.blockedTasks ?? 0,
-      `${tickets.filter((t: any) => t.blocked && t.priority === "critical").length} critical`,
-      "CircleSlash2",
-      "red",
-    ],
-    [
-      "At-risk sprints",
-      summary.atRiskSprints ?? 0,
-      "Risk threshold exceeded",
-      "Activity",
-      "orange",
-    ],
-    [
-      "Sprint health",
-      `${summary.sprintHealth ?? 0}%`,
-      active?.name || "No active sprint",
-      "HeartPulse",
-      "green",
-    ],
-    [
-      "Active projects",
-      summary.activeProjects ?? 0,
-      `${projects.length} total`,
-      "FolderKanban",
-      "blue",
-    ],
-    [
-      "Sprints in progress",
-      summary.sprintsInProgress ?? 0,
-      `${planned} points planned`,
-      "Timer",
-      "purple",
-    ],
+    {
+      label: "Needs attention",
+      value: attentionTickets.length,
+      sub: `${tickets.filter((ticket: Ticket) => ticket.blocked).length} blocked · ${summary.atRiskSprints ?? 0} at-risk sprints`,
+      icon: Icons.CircleAlert,
+      tone: "red",
+      to: "/my-work?scope=attention",
+    },
+    {
+      label: "Sprint health",
+      value: `${summary.sprintHealth ?? 0}%`,
+      sub: active?.name || "No active sprint",
+      icon: Icons.HeartPulse,
+      tone: "green",
+      to: "/sprint-risk",
+    },
+    {
+      label: "Delivery progress",
+      value: `${completed}/${planned}`,
+      sub: `${progress}% of planned points`,
+      icon: Icons.Timer,
+      tone: "purple",
+      to: active?._id ? `/sprints/${active._id}` : "/sprints",
+    },
+    {
+      label: "Active projects",
+      value: summary.activeProjects ?? 0,
+      sub: `${projects.length} total projects`,
+      icon: Icons.FolderKanban,
+      tone: "blue",
+      to: "/projects",
+    },
   ];
   return (
     <>
@@ -7058,23 +7116,42 @@ function DashboardLive() {
           </NavLink>
         )}
       </PageHead>
-      <div className="metrics">
-        {metrics.map(([label, value, sub, icon, tone]) => {
-          const Icon = (Icons as any)[String(icon)];
-          return (
-            <article className="metric" key={String(label)}>
-              <div>
-                <span>{label}</span>
-                <strong>{value}</strong>
-                <small>{sub}</small>
-              </div>
-              <b className={String(tone)}>
-                <Icon />
-              </b>
-            </article>
-          );
-        })}
+      <div className="metrics dashboard-metrics">
+        {metrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}
       </div>
+      <section className="card dashboard-focus">
+        <CardTitle
+          title="Focus for today"
+          sub={attentionTickets.length ? "Resolve the work most likely to slow delivery." : "Your delivery queue is clear for now."}
+        >
+          <NavLink className="text-btn" to="/my-work?scope=attention">
+            View attention queue <Icons.ArrowRight />
+          </NavLink>
+        </CardTitle>
+        {attentionTickets.length ? (
+          <div className="dashboard-focus-list">
+            {attentionTickets.map((ticket) => (
+              <NavLink className="dashboard-focus-ticket" to={`/tickets/${ticket.key}`} key={ticket.id}>
+                <span className={`focus-ticket-icon ${ticket.blocked ? "blocked" : "sla"}`}>
+                  {ticket.blocked ? <Icons.CircleSlash2 /> : <Icons.Timer />}
+                </span>
+                <span className="focus-ticket-copy">
+                  <b>{ticket.key} · {ticket.title}</b>
+                  <small>{ticket.blocked ? "Blocked work" : `${fmt(ticket.slaStatus || "due soon")} SLA`}</small>
+                </span>
+                <Badge tone={ticket.priority}>{fmt(ticket.priority)}</Badge>
+                <Icons.ChevronRight className="focus-ticket-arrow" />
+              </NavLink>
+            ))}
+          </div>
+        ) : (
+          <div className="dashboard-focus-empty">
+            <Icons.CircleCheckBig />
+            <span><b>No urgent tickets</b><small>Keep the momentum going from your personal queue.</small></span>
+            <NavLink className="btn" to="/my-work">Open my work</NavLink>
+          </div>
+        )}
+      </section>
       <div className="dashboard-grid">
         <section className="card span-2">
           <CardTitle title="Sprint risk" sub="Risk score by sprint" />

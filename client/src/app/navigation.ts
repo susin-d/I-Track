@@ -43,9 +43,9 @@ export const nav: NavGroup[] = [
   {
     group: "Plan",
     items: [
+      ["/backlog", ListTodo, "Backlog"],
       ["/projects", FolderKanban, "Projects"],
       ["/resources/epic", Map, "Roadmap"],
-      ["/backlog", ListTodo, "Backlog"],
     ],
   },
   {

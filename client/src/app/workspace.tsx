@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import * as Icons from "lucide-react";
 import { ApiError, api, clearSession, getToken } from "../api";
 import { resourceKinds } from "../constants/resources";
 import type { Ticket } from "../types/domain";
+import { ErrorState, LoadingState } from "./components/ui";
 
 let tickets: Ticket[] = [];
 let projects: {
@@ -455,31 +455,27 @@ export function ApiGate({
   };
 
   if (loading) {
-    return (
-      <div className="app-loading" role="status" aria-live="polite">
-        <span className="brand-mark">I</span>
-        <b>Loading workspace…</b>
-      </div>
-    );
+    return <LoadingState label="Loading workspace…" />;
   }
 
   if (error) {
     return (
-      <div className="app-loading error" role="alert">
-        <Icons.CloudOff />
-        <b>Couldn’t load workspace</b>
-        <p>{error}</p>
-        <button
-          className="btn primary"
-          onClick={() => {
-            setError("");
-            setLoading(true);
-            void loadData();
-          }}
-        >
-          Try again
-        </button>
-      </div>
+      <ErrorState
+        title="Couldn’t load workspace"
+        body={error}
+        action={
+          <button
+            className="btn primary"
+            onClick={() => {
+              setError("");
+              setLoading(true);
+              void loadData();
+            }}
+          >
+            Try again
+          </button>
+        }
+      />
     );
   }
 
