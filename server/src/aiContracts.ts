@@ -23,8 +23,9 @@ const contracts: Record<string, Omit<AiMutationContract, "endpoint">> = {
   "POST /auth/change-password": { body: "{ currentPassword: string, newPassword: string (min 8) }" },
   "PATCH /auth/preferences": { body: "{ notificationPreferences: { ticketAssignments: boolean, mentionsAndComments: boolean, sprintRiskAlerts: boolean, weeklySummary: boolean } }" },
   "POST /auth/accept-invite": { body: "Existing account: { invitationId: string, otp: 6-digit string }. New account: { token: string (min 20), otp: 6-digit string, name: string (min 2), password: string (min 8) }." },
-  "POST /workspaces": { body: "{ name: string (min 2) }" },
+  "POST /workspaces": { body: "{ name: string (min 2) }", prerequisites: "Returns the new workspace id. Call POST /workspaces/:id/switch if you need to perform actions in the new workspace." },
   "POST /workspaces/:id/switch": { body: "{ refreshToken?: string }", prerequisites: "Use the organization/workspace id from a membership returned by GET /workspaces; do not use the membership record id." },
+  "POST /workspaces/:id/onboarding/complete": { body: noBody, prerequisites: "Must switch to this workspace (POST /workspaces/:id/switch) and create at least one project (POST /projects) in it before completing onboarding." },
   "POST /companies/:companyId/workspaces": { body: "{ name: string (min 2), slug?: lowercase letters, numbers, and hyphens }", prerequisites: "Use a company id returned by GET /companies. The server generates a unique slug when slug is omitted." },
   "POST /companies/:companyId/groups": { body: "{ name: string (min 2), description?: string }", prerequisites: "Use a company id returned by GET /companies." },
   "PATCH /companies/:companyId/groups/:id": { body: "Any subset of { name?: string (min 2), description?: string }", prerequisites: "Use the company id and group id returned by GET /companies/:companyId/groups." },
@@ -32,7 +33,7 @@ const contracts: Record<string, Omit<AiMutationContract, "endpoint">> = {
   "PUT /companies/:companyId/groups/:id/workspaces": { body: "{ grants: Array<{ workspace: string, role: workspace role slug }> }", prerequisites: "Read the organization's groups and workspaces first. Every workspace id and role slug must belong to the organization; the supplied array replaces all workspace grants for the group." },
   "POST /roles": { body: "{ name: string (min 2), description?: string, permissions: permission keys[] }", prerequisites: "Read GET /roles first. The role is created for the current workspace." },
   "PATCH /roles/:id": { body: "Any subset of { name?: string (min 2), description?: string, permissions?: permission keys[], rank?: number 1..99 }", prerequisites: "Use a role id returned by GET /roles. The Administrator role cannot be reduced." },
-  "POST /team": { body: "{ name: string (min 2), email: valid email, role: workspace role slug, skills: string[], availability: number 0..1, capacity: number >= 0, avatarColor: string }" },
+  "POST /team": { body: "{ name: string (min 2), email: valid email, role: workspace role slug, skills: string[], availability: number 0..1, capacity: number >= 0, avatarColor: string }", prerequisites: "Use a role slug returned by GET /roles. Note: there is no POST /users endpoint; use POST /team or POST /invitations to create workspace users." },
   "PATCH /users/:id": { body: "Any subset of { name: string (min 2), role: workspace role slug, skills: string[], availability: number 0..1, capacity: number >= 0, avatarColor: string }", prerequisites: "Use a user id returned by GET /users and a role slug returned by GET /roles." },
   "POST /invitations": { body: "{ name: string (min 2), email: valid email, role?: workspace role slug (default engineer), capacity?: number >= 0 (default 32) }", prerequisites: "Use a role slug returned by GET /roles." },
   "POST /projects": { body: "{ key: string (2..12), name: string (min 2), description: string (min 5), status?: planning|active|paused|done, progress?: number 0..100, riskLevel?: low|medium|high|critical, activeSprint?: string, members?: string[] }" },
@@ -71,7 +72,6 @@ const contracts: Record<string, Omit<AiMutationContract, "endpoint">> = {
 
 const noBodyEndpoints = new Set([
   "DELETE /auth/sessions/:id",
-  "POST /workspaces/:id/onboarding/complete",
   "POST /users/:id/deactivate",
   "POST /users/:id/reactivate",
   "DELETE /users/:id",
