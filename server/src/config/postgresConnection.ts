@@ -28,12 +28,17 @@ function connectionTimeoutMillis(environment: NodeJS.ProcessEnv = process.env) {
 
 function poolMax(environment: NodeJS.ProcessEnv = process.env) {
   const configured = Number(environment.DATABASE_POOL_MAX ?? 5);
-  return Number.isFinite(configured) && configured > 0 ? configured : 5;
+  const valid = Number.isFinite(configured) && configured > 0 ? configured : 5;
+  // A serverless deployment can create many warm Node processes. Keep each
+  // process to one database client so a small Supabase session pool is not
+  // exhausted by a handful of function instances.
+  return environment.VERCEL ? 1 : valid;
 }
 
 function idleTimeoutMillis(environment: NodeJS.ProcessEnv = process.env) {
-  const configured = Number(environment.DATABASE_IDLE_TIMEOUT_MS ?? 30000);
-  return Number.isFinite(configured) && configured >= 0 ? configured : 30000;
+  const fallback = environment.VERCEL ? 5000 : 30000;
+  const configured = Number(environment.DATABASE_IDLE_TIMEOUT_MS ?? fallback);
+  return Number.isFinite(configured) && configured >= 0 ? configured : fallback;
 }
 
 function createPool(connectionString: string, environment: NodeJS.ProcessEnv = process.env) {
@@ -43,6 +48,7 @@ function createPool(connectionString: string, environment: NodeJS.ProcessEnv = p
     connectionTimeoutMillis: connectionTimeoutMillis(environment),
     idleTimeoutMillis: idleTimeoutMillis(environment),
     keepAlive: true,
+    allowExitOnIdle: Boolean(environment.VERCEL),
     ssl: connectionString.includes("supabase.com") ? { rejectUnauthorized: false } : undefined,
   });
 }
