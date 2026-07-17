@@ -112,6 +112,8 @@ router.delete("/organization", requireRole(["admin"]), async (req: AuthRequest, 
   if (!organization) return res.status(404).json({ message: "Organization not found" });
   if (body.confirmationName !== organization.name) return res.status(409).json({ message: "Organization name does not match" });
   await withTransaction(async (client) => {
+    await client.query("UPDATE users SET last_active_organization = NULL WHERE last_active_organization = $1", [organization._id]);
+    await client.query("UPDATE organizations SET owner = NULL WHERE id = $1", [organization._id]);
     const tables = ["sessions", "action_tokens", "notifications", "audit_events", "integrations", "counters", "workspace_resources", "tickets", "cycles", "sprints", "projects", "organization_memberships", "invitations"];
     for (const table of tables) await client.query(`DELETE FROM "${table}" WHERE organization = $1`, [organization._id]);
     const result = await client.query("DELETE FROM organizations WHERE id = $1", [organization._id]);
