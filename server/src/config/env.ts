@@ -2,11 +2,13 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const withoutTrailingSlash = (value: string) => value.replace(/\/+$/, "");
+
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   port: Number(process.env.PORT ?? 4000),
-  clientOrigin: process.env.CLIENT_ORIGIN ?? "http://localhost:5173",
-  appUrl: process.env.APP_URL ?? process.env.CLIENT_ORIGIN ?? "http://localhost:5173",
+  clientOrigin: withoutTrailingSlash(process.env.CLIENT_ORIGIN ?? "http://localhost:5173"),
+  appUrl: withoutTrailingSlash(process.env.APP_URL ?? process.env.CLIENT_ORIGIN ?? "http://localhost:5173"),
   databaseUrl: process.env.DATABASE_URL,
   supabaseDatabaseUrl: process.env.SUPABASE_DATABASE_URL,
   jwtSecret: process.env.JWT_SECRET ?? "dev-only-change-me",
