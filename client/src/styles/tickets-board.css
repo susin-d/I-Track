@@ -121,6 +121,15 @@ td:first-child small {
   height: 24px;
 }
 
+.sla-deadline-cell time {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .timeline > div {
   display: flex;
   gap: 13px;
@@ -981,6 +990,22 @@ td:first-child small {
 
 .detail-row > span {
   color: var(--muted);
+}
+
+.sla-resolution-detail {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.sla-resolution-detail > span {
+  flex: 0 0 42%;
+}
+
+.sla-resolution-detail time {
+  color: var(--text);
+  font-weight: 650;
+  line-height: 1.45;
+  text-align: right;
 }
 
 .detail-row button {

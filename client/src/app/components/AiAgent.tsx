@@ -185,6 +185,10 @@ export function AiAgentProvider({ children, toast }: { children: React.ReactNode
       const history = messages.filter((m) => !m.requiresConfirmation).map((m) => ({ role: m.role, content: m.content }));
       const response = await apiFetch("/ai/chat", {
         method: "POST",
+        // AI requests can execute several API tools before the streamed reply is
+        // complete. The shared 15-second API timeout otherwise aborts the body
+        // reader after the response headers have already arrived.
+        timeoutMs: 5 * 60_000,
         headers: {
           Accept: "application/x-ndjson",
         },
@@ -259,11 +263,17 @@ export function AiAgentProvider({ children, toast }: { children: React.ReactNode
       if (res.conversationId) setActiveConversationId(res.conversationId);
       await refreshConversations();
     } catch (e) {
-      toast(e instanceof Error ? e.message : "AI request failed");
+      const rawMessage = e instanceof Error ? e.message : "AI request failed";
+      const wasAborted = e instanceof DOMException && (e.name === "AbortError" || e.name === "TimeoutError")
+        || /BodyStreamBuffer was aborted|body stream.*aborted/i.test(rawMessage);
+      const message = wasAborted
+        ? "The AI request took too long to finish. Please try again."
+        : rawMessage;
+      toast(message);
       setMessages((m) => [...m, {
         id: Date.now() + 1,
         role: "assistant",
-        content: e instanceof Error ? redactAiPrivateDetails(`Sorry, something went wrong: ${e.message}`) : "An unexpected error occurred.",
+        content: redactAiPrivateDetails(`Sorry, something went wrong: ${message}`),
       }]);
     } finally {
       setLoading(false);

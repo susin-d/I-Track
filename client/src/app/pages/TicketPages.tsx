@@ -8,6 +8,20 @@ import { Avatar, Badge, CardTitle, PageHead, Empty, ErrorState, FilterBar, Label
 import { fmt } from "../../utils/ui";
 import type { Ticket } from "../../types/domain";
 
+function formatSlaDeadline(value?: string) {
+  if (!value) return "Not set";
+  const deadline = new Date(value);
+  if (Number.isNaN(deadline.getTime())) return "Not set";
+  return deadline.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+}
+
 export function matchesTicket(
   ticket: Pick<Ticket, "title" | "key" | "labels">,
   query: string,
@@ -183,10 +197,13 @@ export function TicketTable({ rows }: { rows?: Ticket[] }) {
                       {fmt(t.priority)}
                     </Badge>
                   </td>
-                  <td>
+                  <td className="sla-deadline-cell">
                     <Badge tone={slaTone(t.slaStatus)}>
                       {fmt(t.slaStatus || "healthy")}
                     </Badge>
+                    <time dateTime={t.resolutionDueAt} title={t.resolutionDueAt}>
+                      Resolution: {formatSlaDeadline(t.resolutionDueAt)}
+                    </time>
                   </td>
                   <td>
                     <span className="person">
@@ -940,6 +957,12 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
                 </option>
               ))}
             </select>
+          </div>
+          <div className="detail-row sla-resolution-detail">
+            <span>SLA resolution deadline</span>
+            <time dateTime={raw.resolutionDueAt} title={raw.resolutionDueAt}>
+              {formatSlaDeadline(raw.resolutionDueAt)}
+            </time>
           </div>
           <div className="detail-row">
             <span>Assignee</span>
