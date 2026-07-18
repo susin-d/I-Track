@@ -21,9 +21,13 @@ import { fmt } from "../../utils/ui";
 import type { Ticket } from "../../types/domain";
 
 export function DashboardLive() {
-  const { dashboard: d = {}, user: currentUser, organization, projects, tickets, people, risk, role } = useWorkspace();
+  const { dashboard, user: currentUser, organization, projects, tickets, people, risk, role } = useWorkspace();
+  const d = dashboard || {};
   const isLeader = role === "admin" || role === "manager";
-  const summary = d.summary || {};
+  // Keep the dashboard usable while a stale/partial API response is being
+  // replaced. React's default destructuring only handles `undefined`, not a
+  // JSON `null` payload.
+  const summary = d?.summary || {};
   const active =
     (d.sprints || []).find((s: any) => s.status === "active") || d.sprints?.[0];
   const planned = Number(active?.plannedPoints) || 0;

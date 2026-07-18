@@ -498,8 +498,8 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
   };
 
   const addAttachment = async (file: File) => {
-    if (file.size > 650_000) {
-      toast("Files must be 650 KB or smaller");
+    if (file.size > 10_000_000) {
+      toast("Files must be 10 MB or smaller");
       return;
     }
     try {
@@ -907,6 +907,7 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
               disabled={!isLeader}
             />
           </div>
+          {Object.keys(raw.customFields || {}).length > 0 && <div className="ticket-custom-fields"><span>Custom fields</span>{Object.entries(raw.customFields || {}).map(([key, value]) => <div className="detail-row" key={key}><span>{key}</span><b>{String(value || "—")}</b></div>)}</div>}
           {/* Epic breadcrumb */}
           {raw.epic && (
             <div className="detail-row epic-detail-row">

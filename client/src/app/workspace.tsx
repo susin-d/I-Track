@@ -174,7 +174,7 @@ export function ApiGate({
         : Promise.resolve({ integrations: [] });
 
       const [
-        dashboard,
+        dashboardResponse,
         notificationsData,
         labelResourcesData,
         reportsData,
@@ -194,6 +194,12 @@ export function ApiGate({
         apiTokensPromise,
         webhooksPromise,
       ]);
+
+      // Treat an empty response as an empty dashboard so one failed or
+      // partially deployed endpoint cannot crash every authenticated page.
+      const dashboard = dashboardResponse && typeof dashboardResponse === "object"
+        ? dashboardResponse
+        : { summary: {}, projects: [], sprints: [], cycles: [], tickets: [], users: [] };
 
       let resourcesObj = {
         ...(serverData.resources || {}),

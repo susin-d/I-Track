@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { withTransaction } from "../db/pgModel.js";
+import { postgres } from "../config/postgres.js";
 import { isPermission } from "../constants/permissions.js";
 import { hashSha256, randomBase64UrlToken } from "../lib/crypto.js";
 import { parseOr400 } from "../lib/http.js";
@@ -24,6 +25,7 @@ import { WorkspaceRole } from "../models/Role.js";
 import { resourceKinds, WorkspaceResource } from "../models/WorkspaceResource.js";
 import { applySlaState, statusTransition } from "../services/sla.js";
 import { applyWorkspaceRules } from "../services/rules.js";
+import { attachmentStorage } from "../services/attachmentStorage.js";
 import { ensureWorkspaceRoles, publicRole, roleSlug, uniquePermissions } from "../services/roles.js";
 
 const router = Router();
@@ -218,23 +220,47 @@ router.patch("/tickets/:id/comments/:commentId", async (req: AuthRequest, res) =
 router.delete("/tickets/:id/comments/:commentId", async (req: AuthRequest, res) => { const [ticket, user] = await Promise.all([Ticket.findOne({ _id: req.params.id, organization: oid(req) }), User.findById(uid(req))]); if (!(await requireTicketAccess(req, res, ticket)) || !ticket) return; const comment = ticket.comments.find((item: any) => String(item._id ?? item.id) === req.params.commentId); if (!comment) return res.status(404).json({ message: "Comment not found" }); if (!req.user!.permissions?.includes("tickets.manage") && !ownedBy(comment, req, user)) return res.status(403).json({ message: "You may only delete your own comments" }); ticket.comments = ticket.comments.filter((item: any) => String(item._id ?? item.id) !== req.params.commentId); await ticket.save(); return res.json({ ticket }); });
 router.patch("/tickets/:id/work-logs/:logId", async (req: AuthRequest, res) => { const body = parseOr400(z.object({ hours: z.number().min(.25).max(24).optional(), note: z.string().min(1).optional() }), req.body, res); if (!body) return; const [ticket, user] = await Promise.all([Ticket.findOne({ _id: req.params.id, organization: oid(req) }), User.findById(uid(req))]); if (!(await requireTicketAccess(req, res, ticket)) || !ticket) return; const log = ticket.workLogs.find((item: any) => String(item._id ?? item.id) === req.params.logId); if (!log) return res.status(404).json({ message: "Work log not found" }); if (!req.user!.permissions?.includes("tickets.manage") && !ownedBy(log, req, user)) return res.status(403).json({ message: "You may only edit your own work logs" }); Object.assign(log, body); await ticket.save(); return res.json({ ticket }); });
 router.delete("/tickets/:id/work-logs/:logId", async (req: AuthRequest, res) => { const [ticket, user] = await Promise.all([Ticket.findOne({ _id: req.params.id, organization: oid(req) }), User.findById(uid(req))]); if (!(await requireTicketAccess(req, res, ticket)) || !ticket) return; const log = ticket.workLogs.find((item: any) => String(item._id ?? item.id) === req.params.logId); if (!log) return res.status(404).json({ message: "Work log not found" }); if (!req.user!.permissions?.includes("tickets.manage") && !ownedBy(log, req, user)) return res.status(403).json({ message: "You may only delete your own work logs" }); ticket.workLogs = ticket.workLogs.filter((item: any) => String(item._id ?? item.id) !== req.params.logId); await ticket.save(); return res.json({ ticket }); });
+router.get("/tickets/attachments/:attachmentId/download", async (req: AuthRequest, res) => {
+  const result = await postgres.query("SELECT * FROM ticket_attachments WHERE id = $1 AND organization = $2", [req.params.attachmentId, oid(req)]);
+  const attachment = result.rows[0];
+  if (!attachment) return res.status(404).json({ message: "Attachment not found" });
+  const ticket = await Ticket.findOne({ _id: attachment.ticket, organization: oid(req) });
+  if (!(await requireTicketAccess(req, res, ticket)) || !ticket) return;
+  if (attachment.source_url) return res.redirect(302, attachment.source_url);
+  const stored = await attachmentStorage().get(attachment.storage_key);
+  if (!stored) return res.status(404).json({ message: "Attachment content not found" });
+  res.type(attachment.mime_type || "application/octet-stream");
+  res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(attachment.name)}`);
+  for await (const chunk of stored.body) res.write(Buffer.from(chunk));
+  return res.end();
+});
+
 router.post("/tickets/:id/attachments", async (req: AuthRequest, res) => {
   const body = parseOr400(z.object({
     name: z.string().min(1).max(255),
     url: z.string().url().optional(),
-    dataUrl: z.string().regex(/^data:[^;]+;base64,/).max(900_000).optional(),
+    dataUrl: z.string().regex(/^data:[^;]+;base64,/).max(14_000_000).optional(),
     mimeType: z.string().max(255).optional(),
-    size: z.number().int().min(0).max(650_000).optional(),
+    size: z.number().int().min(0).max(10_000_000).optional(),
   }).refine((value) => Boolean(value.url || value.dataUrl), { message: "A file or URL is required" }), req.body, res);
   if (!body) return;
   const ticket = await Ticket.findOne({ _id: req.params.id, organization: oid(req) });
   if (!(await requireTicketAccess(req, res, ticket)) || !ticket) return;
-  ticket.attachments.push({ id: randomUUID(), ...body, storage: body.dataUrl ? "database" : "external", uploadedBy: uid(req), createdAt: new Date() });
+  const id = randomUUID();
+  const storageKey = `${oid(req)}/${ticket._id}/${id}-${body.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+  if (body.dataUrl) {
+    const comma = body.dataUrl.indexOf(",");
+    const data = Buffer.from(body.dataUrl.slice(comma + 1), "base64");
+    if (data.length > 10_000_000) return res.status(413).json({ message: "Attachment exceeds the 10 MB limit" });
+    await attachmentStorage().put(storageKey, data, body.mimeType || "application/octet-stream");
+  }
+  await postgres.query("INSERT INTO ticket_attachments (id, organization, ticket, name, storage_key, source_url, mime_type, size, uploaded_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)", [id, oid(req), ticket._id, body.name, storageKey, body.url || null, body.mimeType || "application/octet-stream", body.size || 0, uid(req)]);
+  ticket.attachments.push({ id, name: body.name, url: body.url || `/api/v1/tickets/attachments/${id}/download`, mimeType: body.mimeType, size: body.size, storage: body.dataUrl ? "object-storage" : "external", uploadedBy: uid(req), createdAt: new Date() });
   await ticket.save();
   await audit(req, "ticket.attachment.added", "ticket", ticket._id, { name: body.name, size: body.size, storage: body.dataUrl ? "database" : "external" });
   return res.status(201).json({ ticket });
 });
-router.delete("/tickets/:id/attachments/:attachmentId", async (req: AuthRequest, res) => { const ticket = await Ticket.findOne({ _id: req.params.id, organization: oid(req) }); if (!(await requireTicketAccess(req, res, ticket)) || !ticket) return; const attachment = ticket.attachments.find((item: any) => String(item._id ?? item.id) === req.params.attachmentId); if (!attachment) return res.status(404).json({ message: "Attachment not found" }); if (!req.user!.permissions?.includes("tickets.manage") && !ownedBy(attachment, req)) return res.status(403).json({ message: "You may only delete your own attachments" }); ticket.attachments = ticket.attachments.filter((item: any) => String(item._id ?? item.id) !== req.params.attachmentId); await ticket.save(); return res.json({ ticket }); });
+router.delete("/tickets/:id/attachments/:attachmentId", async (req: AuthRequest, res) => { const ticket = await Ticket.findOne({ _id: req.params.id, organization: oid(req) }); if (!(await requireTicketAccess(req, res, ticket)) || !ticket) return; const attachment = ticket.attachments.find((item: any) => String(item._id ?? item.id) === req.params.attachmentId); if (!attachment) return res.status(404).json({ message: "Attachment not found" }); if (!req.user!.permissions?.includes("tickets.manage") && !ownedBy(attachment, req)) return res.status(403).json({ message: "You may only delete your own attachments" }); const stored = await postgres.query("SELECT storage_key FROM ticket_attachments WHERE id = $1 AND organization = $2", [req.params.attachmentId, oid(req)]); if (stored.rows[0]) { if (!attachment.url) await attachmentStorage().remove(stored.rows[0].storage_key); await postgres.query("DELETE FROM ticket_attachments WHERE id = $1 AND organization = $2", [req.params.attachmentId, oid(req)]); } ticket.attachments = ticket.attachments.filter((item: any) => String(item._id ?? item.id) !== req.params.attachmentId); await ticket.save(); return res.json({ ticket }); });
 router.delete("/tickets/:id", requireRole(["admin", "manager"]), async (req: AuthRequest, res) => { const ticket = await Ticket.findOneAndDelete({ _id: req.params.id, organization: oid(req) }); return ticket ? res.status(204).send() : res.status(404).json({ message: "Ticket not found" }); });
 router.post("/tickets/:id/clone", requireRole(["admin", "manager"]), async (req: AuthRequest, res) => { const source = await Ticket.findOne({ _id: req.params.id, organization: oid(req) }).lean(); if (!source) return res.status(404).json({ message: "Ticket not found" }); const project = await Project.findById(source.project); const counter = await Counter.findOneAndUpdate({ organization: oid(req), scope: `ticket:${source.project}` }, { $inc: { value: 1 } }, { upsert: true, new: true, setDefaultsOnInsert: true }); const { _id, createdAt, updatedAt, ...copy } = source as typeof source & { createdAt?: Date; updatedAt?: Date }; const ticket = await Ticket.create({ ...copy, title: `${source.title} (copy)`, ticketId: `${project?.key}-${counter!.value}`, history: [{ event: "Cloned", createdAt: new Date() }] }); return res.status(201).json({ ticket }); });
 
@@ -284,6 +310,119 @@ router.delete("/organization", requireRole(["admin"]), async (req: AuthRequest, 
 });
 router.get("/organization/usage", requireRole(["admin"]), async (req: AuthRequest, res) => { const [users, projects, tickets, storage] = await Promise.all([OrganizationMembership.countDocuments({ organization: oid(req) }), Project.countDocuments({ organization: oid(req) }), Ticket.countDocuments({ organization: oid(req) }), Resources.countDocuments({ organization: oid(req) })]); return res.json({ usage: { users, projects, tickets, resources: storage } }); });
 router.get("/export", requireRole(["admin"]), async (req: AuthRequest, res) => { const [organization, memberships, projects, sprints, cycles, tickets, resources] = await Promise.all([Organization.findById(oid(req)), OrganizationMembership.find({ organization: oid(req) }).populate("user", "name email avatarColor notificationPreferences"), Project.find({ organization: oid(req) }), Sprint.find({ organization: oid(req) }), Cycle.find({ organization: oid(req) }), Ticket.find({ organization: oid(req) }), Resources.find({ organization: oid(req) })]); return res.json({ exportedAt: new Date(), organization, users: memberships.map((m: any) => ({ user: m.user, role: m.role, status: m.status, skills: m.skills, availability: m.availability, capacity: m.capacity })), projects, sprints, cycles, tickets, resources }); });
+const importItemId = (item: any) => String(item?._id || item?.id || "");
+const importDate = (value: unknown, fallback: Date) => {
+  const parsed = value ? new Date(String(value)) : fallback;
+  return Number.isNaN(parsed.getTime()) ? fallback : parsed;
+};
+const importJson = (value: unknown, fallback: unknown) => JSON.stringify(value ?? fallback);
+const workspaceImportSchema = z.object({
+  organization: z.record(z.string(), z.unknown()).optional(),
+  users: z.array(z.object({
+    user: z.record(z.string(), z.unknown()),
+    role: z.string().min(1),
+    status: z.string().default("active"),
+    skills: z.array(z.string()).default([]),
+    availability: z.number().min(0).max(1).default(1),
+    capacity: z.number().min(0).max(168).default(32),
+  })).default([]),
+  projects: z.array(z.record(z.string(), z.unknown())).default([]),
+  sprints: z.array(z.record(z.string(), z.unknown())).default([]),
+  cycles: z.array(z.record(z.string(), z.unknown())).default([]),
+  tickets: z.array(z.record(z.string(), z.unknown())).default([]),
+  resources: z.array(z.record(z.string(), z.unknown())).default([]),
+});
+
+router.post("/import", requireRole(["admin"]), async (req: AuthRequest, res) => {
+  const body = parseOr400(workspaceImportSchema, req.body, res);
+  if (!body) return;
+  const organizationId = oid(req)!;
+  const actorId = uid(req)!;
+  const imported = { users: 0, projects: 0, sprints: 0, cycles: 0, tickets: 0, resources: 0 };
+  const skipped: Array<{ kind: string; name: string; reason: string }> = [];
+  const projectIds = new Map<string, string>();
+  const sprintIds = new Map<string, string>();
+  const userIds = new Map<string, string>();
+  const client = await postgres.connect();
+  try {
+    await client.query("BEGIN");
+    for (const membership of body.users) {
+      const email = String(membership.user.email || "").trim().toLowerCase();
+      if (!email) { skipped.push({ kind: "user", name: "unknown", reason: "Missing email" }); continue; }
+      const existing = await client.query("SELECT id FROM users WHERE lower(email) = lower($1)", [email]);
+      if (!existing.rows[0]) { skipped.push({ kind: "user", name: email, reason: "User does not exist; credentials are never imported" }); continue; }
+      const userId = String(existing.rows[0].id);
+      userIds.set(importItemId(membership.user), userId);
+      const membershipResult = await client.query("SELECT id FROM organization_memberships WHERE user_id = $1 AND organization = $2", [userId, organizationId]);
+      if (membershipResult.rows[0]) {
+        await client.query("UPDATE organization_memberships SET role = $1, status = $2, skills = $3::jsonb, availability = $4, capacity = $5, updated_at = now() WHERE id = $6", [membership.role, membership.status === "disabled" ? "disabled" : "active", importJson(membership.skills, []), membership.availability, membership.capacity, membershipResult.rows[0].id]);
+      } else {
+        await client.query("INSERT INTO organization_memberships (user_id, organization, role, status, skills, availability, capacity) VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)", [userId, organizationId, membership.role, membership.status === "disabled" ? "disabled" : "active", importJson(membership.skills, []), membership.availability, membership.capacity]);
+      }
+      imported.users += 1;
+    }
+    for (const source of body.projects) {
+      const key = String(source.key || "").trim().toUpperCase();
+      const name = String(source.name || "").trim();
+      if (!key || !name) { skipped.push({ kind: "project", name: name || key || "unknown", reason: "Project key and name are required" }); continue; }
+      const duplicate = await client.query("SELECT id FROM projects WHERE organization = $1 AND key = $2", [organizationId, key]);
+      if (duplicate.rows[0]) { projectIds.set(importItemId(source), String(duplicate.rows[0].id)); skipped.push({ kind: "project", name, reason: "Project key already exists" }); continue; }
+      const id = randomUUID();
+      await client.query("INSERT INTO projects (id, organization, key, name, description, status, progress, risk_level, active_sprint, members) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)", [id, organizationId, key, name, String(source.description || ""), String(source.status || "planning"), Number(source.progress || 0), String(source.riskLevel || "low"), source.activeSprint || null, importJson((source.members as unknown[]) || [], [])]);
+      projectIds.set(importItemId(source), id); imported.projects += 1;
+    }
+    for (const source of body.sprints) {
+      const projectId = projectIds.get(String(source.project || "")) || String(source.project || "");
+      const name = String(source.name || "").trim();
+      if (!projectId || !name) { skipped.push({ kind: "sprint", name: name || "unknown", reason: "Sprint project and name are required" }); continue; }
+      const projectExists = await client.query("SELECT id FROM projects WHERE id = $1 AND organization = $2", [projectId, organizationId]);
+      if (!projectExists.rows[0]) { skipped.push({ kind: "sprint", name, reason: "Referenced project does not exist" }); continue; }
+      const duplicate = await client.query("SELECT id FROM sprints WHERE organization = $1 AND project = $2 AND name = $3", [organizationId, projectId, name]);
+      if (duplicate.rows[0]) { sprintIds.set(importItemId(source), String(duplicate.rows[0].id)); skipped.push({ kind: "sprint", name, reason: "Sprint already exists" }); continue; }
+      const id = randomUUID();
+      await client.query("INSERT INTO sprints (id, organization, name, project, status, start_date, end_date, capacity, planned_points, completed_points, velocity_history, risk_score) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12)", [id, organizationId, name, projectId, String(source.status || "planned"), importDate(source.startDate, new Date()), importDate(source.endDate, new Date()), Number(source.capacity || 0), Number(source.plannedPoints || 0), Number(source.completedPoints || 0), importJson(source.velocityHistory, []), Number(source.riskScore || 0)]);
+      sprintIds.set(importItemId(source), id); imported.sprints += 1;
+    }
+    for (const source of body.cycles) {
+      const name = String(source.name || "").trim();
+      if (!name) { skipped.push({ kind: "cycle", name: "unknown", reason: "Cycle name is required" }); continue; }
+      const duplicate = await client.query("SELECT id FROM cycles WHERE organization = $1 AND name = $2", [organizationId, name]);
+      if (duplicate.rows[0]) { skipped.push({ kind: "cycle", name, reason: "Cycle already exists" }); continue; }
+      const sprintRefs = Array.isArray(source.sprints) ? (source.sprints as unknown[]).map((value) => sprintIds.get(String(value)) || String(value)).filter(Boolean) : [];
+      await client.query("INSERT INTO cycles (id, organization, name, goal, status, start_date, end_date, sprints) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)", [randomUUID(), organizationId, name, String(source.goal || ""), String(source.status || "planned"), importDate(source.startDate, new Date()), importDate(source.endDate, new Date()), importJson(sprintRefs, [])]);
+      imported.cycles += 1;
+    }
+    for (const source of body.tickets) {
+      const ticketId = String(source.ticketId || "").trim();
+      const title = String(source.title || "").trim();
+      const projectId = projectIds.get(String(source.project || "")) || String(source.project || "");
+      if (!ticketId || !title || !projectId) { skipped.push({ kind: "ticket", name: ticketId || title || "unknown", reason: "Ticket key, title, and project are required" }); continue; }
+      const projectExists = await client.query("SELECT id FROM projects WHERE id = $1 AND organization = $2", [projectId, organizationId]);
+      const duplicate = await client.query("SELECT id FROM tickets WHERE organization = $1 AND ticket_id = $2", [organizationId, ticketId]);
+      if (!projectExists.rows[0]) { skipped.push({ kind: "ticket", name: ticketId, reason: "Referenced project does not exist" }); continue; }
+      if (duplicate.rows[0]) { skipped.push({ kind: "ticket", name: ticketId, reason: "Ticket key already exists" }); continue; }
+      const sprintId = source.sprint ? sprintIds.get(String(source.sprint)) || String(source.sprint) : null;
+      await client.query("INSERT INTO tickets (id, organization, ticket_id, title, description, acceptance_criteria, acceptance_criteria_done, status, priority, issue_type, custom_fields, story_points, assignee, reporter, project, sprint, epic, labels, due_date, blocked, dependencies, issue_links, comments, work_logs, history, status_transitions, watchers, attachments, sla_policy, sla_status, rank) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9, $10, $11::jsonb, $12, $13, $14, $15, $16, $17, $18::jsonb, $19, $20, $21::jsonb, $22::jsonb, $23::jsonb, $24::jsonb, $25::jsonb, $26::jsonb, $27::jsonb, $28::jsonb, $29::jsonb, $30, $31)", [randomUUID(), organizationId, ticketId, title, String(source.description || ""), importJson(source.acceptanceCriteria, []), importJson(source.acceptanceCriteriaDone, []), String(source.status || "Backlog"), String(source.priority || "medium"), String(source.issueType || "Task"), importJson(source.customFields, {}), Number(source.storyPoints || 0), source.assignee ? (userIds.get(String(source.assignee)) || null) : null, userIds.get(String(source.reporter)) || actorId, projectId, sprintId, String(source.epic || ""), importJson(source.labels, []), source.dueDate ? importDate(source.dueDate, new Date()) : null, Boolean(source.blocked), importJson(source.dependencies, []), importJson(source.issueLinks, []), importJson(source.comments, []), importJson(source.workLogs, []), importJson(source.history, []), importJson(source.statusTransitions, []), importJson(source.watchers, []), importJson(source.attachments, []), importJson(source.slaPolicy, { firstResponseHours: 8, resolutionHours: 72 }), String(source.slaStatus || "healthy"), Number(source.rank || 0)]);
+      imported.tickets += 1;
+    }
+    for (const source of body.resources) {
+      const kind = String(source.kind || "");
+      const name = String(source.name || "").trim();
+      if (!resourceKinds.includes(kind as never) || !name) { skipped.push({ kind: "resource", name: name || "unknown", reason: "Valid resource kind and name are required" }); continue; }
+      const project = source.project ? (projectIds.get(String(source.project)) || String(source.project)) : null;
+      const duplicate = await client.query("SELECT id FROM workspace_resources WHERE organization = $1 AND kind = $2 AND name = $3 AND project IS NOT DISTINCT FROM $4", [organizationId, kind, name, project]);
+      if (duplicate.rows[0]) { skipped.push({ kind, name, reason: "Resource already exists" }); continue; }
+      await client.query("INSERT INTO workspace_resources (id, organization, project, kind, name, key, description, status, ordering, config) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)", [randomUUID(), organizationId, project, kind, name, source.key || null, String(source.description || ""), String(source.status || "active"), Number(source.order || 0), importJson(source.config, {})]);
+      imported.resources += 1;
+    }
+    await client.query("INSERT INTO audit_events (organization, actor, action, entity_type, metadata) VALUES ($1, $2, $3, $4, $5::jsonb)", [organizationId, actorId, "workspace.imported", "workspace", JSON.stringify({ imported, skipped: skipped.length })]);
+    await client.query("COMMIT");
+    return res.status(201).json({ imported, skipped, warnings: skipped.map((item) => `${item.kind} ${item.name}: ${item.reason}`) });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally { client.release(); }
+});
 router.post("/import/resources", requireRole(["admin"]), async (req: AuthRequest, res) => { const body = parseOr400(z.object({ resources: z.array(z.object({ kind: z.enum(resourceKinds), name: z.string().min(1), project: z.string().optional(), key: z.string().optional(), description: z.string().default(""), status: z.string().default("active"), order: z.number().default(0), config: z.record(z.string(), z.unknown()).default({}) })).max(1000) }), req.body, res); if (!body) return; const result = await Resources.insertMany(body.resources.map((resource: object) => ({ ...resource, organization: oid(req) })), { ordered: false }); await audit(req, "resources.imported", "workspace-resource", undefined, { count: result.length }); return res.status(201).json({ imported: result.length }); });
 
 export default router;

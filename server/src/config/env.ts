@@ -26,4 +26,12 @@ export const env = {
   openaiBaseUrl: process.env.OPENAI_BASE_URL ?? "https://opencode.ai/zen/v1",
   openaiModel: process.env.OPENAI_MODEL,
   openaiChatModel: process.env.OPENAI_CHAT_MODEL ?? process.env.OPENAI_MODEL,
+  attachmentStorageProvider: process.env.ATTACHMENT_STORAGE_PROVIDER ?? "local",
+  attachmentStorageDir: process.env.ATTACHMENT_STORAGE_DIR ?? "uploads/attachments",
+  attachmentPublicBaseUrl: process.env.ATTACHMENT_PUBLIC_BASE_URL,
+  s3Endpoint: process.env.S3_ENDPOINT,
+  s3Region: process.env.S3_REGION ?? "auto",
+  s3Bucket: process.env.S3_BUCKET,
+  s3AccessKeyId: process.env.S3_ACCESS_KEY_ID,
+  s3SecretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
 };

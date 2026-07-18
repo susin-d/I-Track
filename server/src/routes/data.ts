@@ -17,6 +17,7 @@ import { WorkspaceRole } from "../models/Role.js";
 import { WorkspaceResource } from "../models/WorkspaceResource.js";
 import { cycleSchema, projectSchema, settingsSchema, sprintSchema, teamSchema, ticketSchema } from "../schemas/workspace.js";
 import { applySlaState, cycleMetricsForTickets, normalizeSlaPolicy, slaFieldsForTicket, statusTransition } from "../services/sla.js";
+import { filterReportRows } from "../services/reporting.js";
 import { applyWorkspaceRules } from "../services/rules.js";
 import { ensureWorkspaceRoles, publicRole } from "../services/roles.js";
 
@@ -489,7 +490,12 @@ router.route("/settings")
   });
 
 router.get("/reports", async (req: AuthRequest, res) => {
-  const [tickets, sprints] = await Promise.all([Ticket.find(orgFilter(req)), Sprint.find(orgFilter(req))]);
+  const projectId = typeof req.query.projectId === "string" ? req.query.projectId : "";
+  const memberId = typeof req.query.memberId === "string" ? req.query.memberId : "";
+  const startDate = typeof req.query.startDate === "string" ? new Date(req.query.startDate) : null;
+  const ticketRows = await Ticket.find(orgFilter(req));
+  const sprintRows = await Sprint.find(orgFilter(req));
+  const { tickets, sprints } = filterReportRows(ticketRows, sprintRows, { projectId, memberId, startDate: startDate && !Number.isNaN(startDate.getTime()) ? startDate : null });
   const done = tickets.filter((ticket) => ticket.status === "Done").length;
   const cycleMetrics = cycleMetricsForTickets(tickets);
   const burnoutTrend = sprints.slice(-5).map((sprint) => sprint.capacity ? Math.round(Math.min(100, (sprint.plannedPoints / sprint.capacity) * 100)) : 0);

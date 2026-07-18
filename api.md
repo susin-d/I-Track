@@ -216,6 +216,7 @@ organization-group workspace grants.
 | `DELETE` | `/tickets/:id/work-logs/:logId` | all | Requires confirmation |
 | `PATCH` | `/tickets/:id/dependencies` | leaders | No |
 | `POST` | `/tickets/:id/attachments` | all | No |
+| `GET` | `/tickets/attachments/:attachmentId/download` | all | No |
 | `DELETE` | `/tickets/:id/attachments/:attachmentId` | all | Requires confirmation |
 
 ## Resources
@@ -249,6 +250,7 @@ organization-group workspace grants.
 | `GET` | `/organization/usage` | admin | No |
 | `GET` | `/export` | admin | No |
 | `POST` | `/import/resources` | admin | No |
+| `POST` | `/import` | admin | No |
 | `GET` | `/reports` | all | No |
 | `GET` | `/reports/cycle-time` | all | No |
 | `GET` | `/dashboard` | all | No |

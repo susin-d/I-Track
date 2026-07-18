@@ -158,6 +158,7 @@ export function UserDetail() {
   const { userId } = useParams();
   const {
     dashboard,
+    organization,
     tickets,
     refetch,
     toast,
@@ -213,8 +214,9 @@ export function UserDetail() {
     }
   };
 
+  const weeklyCapacity = organization?.settings?.weeklyCapacityHours ?? 40;
   const workload = u.capacity
-    ? Math.min(100, Math.round(((u.capacity || 0) / 40) * 100))
+    ? Math.min(100, Math.round(((u.capacity || 0) / weeklyCapacity) * 100))
     : 0;
   const userTickets = tickets.filter((t) => t.assignee === u.name);
 

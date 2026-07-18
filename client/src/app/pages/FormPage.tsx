@@ -82,6 +82,7 @@ export function FormPage({
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState("");
   const [ticketLabels, setTicketLabels] = useState<string[]>([]);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
   const [inviteUrl, setInviteUrl] = useState("");
   const [inviteCopied, setInviteCopied] = useState(false);
   const [projectKey, setProjectKey] = useState("");
@@ -183,6 +184,8 @@ export function FormPage({
             status: "Backlog",
             acceptanceCriteria: [],
             epic: values.get("epic") || "Product backlog",
+            issueType: values.get("issueType") || "Task",
+            customFields: customFieldValues,
             labels: ticketLabels,
             blocked: false,
             dependencies: [],
@@ -310,6 +313,18 @@ export function FormPage({
               </select>
             </label>
             <label className="field">
+              <span>Issue type</span>
+              <select name="issueType" defaultValue="Task">
+                <option value="Task">Task</option>
+                {(resources?.["issue-type"] || []).map((item: any) => <option key={item._id || item.id} value={item.name}>{item.name}</option>)}
+              </select>
+            </label>
+            {(resources?.["custom-field"] || []).map((field: any) => {
+              const key = String(field.key || field.name).trim();
+              const config = field.config || {};
+              return <label className="field" key={field._id || field.id || key}><span>{field.name}</span><input value={customFieldValues[key] || ""} placeholder={config.placeholder || ""} onChange={(event) => setCustomFieldValues((current) => ({ ...current, [key]: event.target.value }))} /></label>;
+            })}
+            <label className="field">
               <span>Story points</span>
               <input name="storyPoints" type="number" defaultValue="3" min="1" max="21" />
             </label>
@@ -388,7 +403,7 @@ export function FormPage({
             </label>
             <label className="field full">
               <span>Description</span>
-              <textarea name="description" placeholder="What is this project responsible for?" required />
+              <textarea name="description" placeholder="What is this project responsible for?" minLength={5} required />
             </label>
           </div>
         )}
@@ -559,16 +574,19 @@ export function ChangePasswordLive({ toast }: { toast: (s: string) => void }) {
 export function ImportExportLive({ toast }: { toast: (s: string) => void }) {
   const { organization, refetch } = useWorkspace();
   const [json, setJson] = useState("");
+  const [importResult, setImportResult] = useState<any>(null);
 
   const submit = async () => {
     try {
       const parsed = JSON.parse(json);
-      const resources = Array.isArray(parsed) ? parsed : parsed.resources;
-      await api("/import/resources", {
+      const payload = Array.isArray(parsed) ? { resources: parsed } : parsed;
+      const result = await api<any>("/import", {
         method: "POST",
-        body: JSON.stringify({ resources }),
+        body: JSON.stringify(payload),
       });
-      toast(`${resources.length} resources imported`);
+      setImportResult(result);
+      const total = Object.values(result.imported || {}).reduce((sum: number, value: any) => sum + Number(value || 0), 0);
+      toast(`${total} workspace records imported`);
       setJson("");
       await refetch();
     } catch (error) {
@@ -599,13 +617,14 @@ export function ImportExportLive({ toast }: { toast: (s: string) => void }) {
       <PageHead title="Import & export" desc="Move workspace data using authenticated APIs." />
       <div className="two-col">
         <section className="card">
-          <CardTitle title="Import resources" sub="Paste a JSON array or an object containing resources." />
+          <CardTitle title="Import workspace export" sub="Paste a JSON export to validate and restore workspace data. Existing users are matched by email." />
           <textarea
             className="comment"
             value={json}
             onChange={(event) => setJson(event.target.value)}
-            placeholder='[{"kind":"label","name":"Example"}]'
+            placeholder='{"projects":[],"sprints":[],"cycles":[],"tickets":[],"resources":[]}'
           />
+          {importResult && <div className="import-result" role="status"><b>Import complete</b><small>{Object.entries(importResult.imported || {}).map(([kind, count]) => `${kind}: ${count}`).join(" · ")}</small>{importResult.warnings?.length > 0 && <small>{importResult.warnings.length} records skipped with warnings.</small>}</div>}
           <button className="btn primary wide" onClick={submit} disabled={!json.trim()}>
             Validate and import
           </button>

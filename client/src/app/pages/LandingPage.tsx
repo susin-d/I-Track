@@ -1,29 +1,27 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import * as Icons from "lucide-react";
-import { getToken } from "../../api";
+import { api, getToken } from "../../api";
+
+const FALLBACK_MARKETING = {
+  preview: { sprintHealth: 84, completed: 32, planned: 41, velocityChange: 18, risk: 12, blockersResolved: 3, confidence: 92, risksCaught: 2 },
+  proof: { avatars: ["AK", "JM", "RL"], additional: "+2k" },
+  logos: ["northstar", "Vertex", "APERTURE", "lumon", "QUANTUM"],
+  testimonial: { quote: "I-TRACK gave us back the one thing our team was missing: a shared sense of what matters.", name: "Maya Chen", title: "VP of Product at Northstar", initials: "MC" },
+};
 
 export function LandingPage() {
-  const marketing = {
-    preview: {
-      sprintHealth: 84,
-      completed: 32,
-      planned: 41,
-      velocityChange: 18,
-      risk: 12,
-      blockersResolved: 3,
-    },
-    proof: { avatars: ["AK", "JM", "RL"], additional: "+2k" },
-    logos: ["northstar", "Vertex", "APERTURE", "lumon", "QUANTUM"],
-    testimonial: {
-      quote: "I-TRACK gave us back the one thing our team was missing: a shared sense of what matters.",
-      name: "Maya Chen",
-      title: "VP of Product at Northstar",
-      initials: "MC",
-    },
-  };
+  const [marketing, setMarketing] = useState<any>(FALLBACK_MARKETING);
+  const [marketingState, setMarketingState] = useState<"loading" | "live" | "fallback">("loading");
   const [menuOpen, setMenuOpen] = useState(false);
   const isLoggedIn = Boolean(getToken());
   const year = new Date().getFullYear();
+  useEffect(() => {
+    let active = true;
+    void api<any>("/marketing")
+      .then((data) => { if (active) { setMarketing(data); setMarketingState("live"); } })
+      .catch(() => { if (active) setMarketingState("fallback"); });
+    return () => { active = false; };
+  }, []);
   const features = [
     { icon: Icons.Gauge, title: "See risk before it slips", text: "Live sprint health, workload signals, and delivery forecasts give every team an honest view of what happens next." },
     { icon: Icons.Sparkles, title: "Turn updates into action", text: "Ask I-TRACK what changed, where work is blocked, and what deserves attention—without another status meeting." },
@@ -51,6 +49,7 @@ export function LandingPage() {
       </header>
 
       <main id="top">
+        {marketingState === "fallback" && <div className="landing-data-note" role="status">Showing the latest available product preview.</div>}
         <section className="landing-hero">
           <div className="hero-copy">
             <div className="eyebrow"><span></span>Built for teams that ship</div>
