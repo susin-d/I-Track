@@ -3,14 +3,12 @@
   "builds": [
     {
       "src": "src/index.ts",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["templates/mail/**"]
+      }
     }
   ],
-  "functions": {
-    "src/index.ts": {
-      "includeFiles": "templates/mail/**"
-    }
-  },
   "routes": [
     {
       "src": "/(.*)",
