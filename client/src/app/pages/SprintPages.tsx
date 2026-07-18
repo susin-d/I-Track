@@ -491,7 +491,6 @@ export function Board({
                     <div
                       style={{
                         display: "flex",
-                        justifyContent: "space-between",
                         alignItems: "center",
                         marginTop: "8px",
                       }}
@@ -507,24 +506,6 @@ export function Board({
                           <option key={x}>{x}</option>
                         ))}
                       </select>
-                      <div>
-                        <button
-                          className="icon-btn"
-                          aria-label={`Move ${t.key} up`}
-                          title="Move ticket up"
-                          onClick={() => changeRank(t.id, t.rank || 0, 1)}
-                        >
-                          <Icons.ChevronUp size={14} />
-                        </button>
-                        <button
-                          className="icon-btn"
-                          aria-label={`Move ${t.key} down`}
-                          title="Move ticket down"
-                          onClick={() => changeRank(t.id, t.rank || 0, -1)}
-                        >
-                          <Icons.ChevronDown size={14} />
-                        </button>
-                      </div>
                     </div>
                   </article>
                 ))}
