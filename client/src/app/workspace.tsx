@@ -220,7 +220,12 @@ export function ApiGate({ children, toast }: { children: React.ReactNode; toast:
       integrations: [...(routeQueries[4].data?.integrations || []), ...(routeQueries[5].data?.integrations || [])],
       resources, labelOptions, ...parsed, role: me?.user?.role || "admin",
       loading: false, error: "",
-      refetch: async () => { await queryClient.invalidateQueries({ queryKey: ["dashboard"] }); },
+      refetch: async () => {
+        await queryClient.invalidateQueries({
+          predicate: (query) => query.queryKey[0] !== "session",
+          refetchType: "active",
+        });
+      },
       updateData, mutate, toast,
     };
   }, [dashboardQuery.data, labelQuery.data, me, notificationsQuery.data, queryClient, routeQueries, toast]);

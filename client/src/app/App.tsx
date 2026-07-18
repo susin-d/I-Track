@@ -32,7 +32,7 @@ export function App() {
   const toast = (input: ToastInput) => {
     const id = `${Date.now()}-${toastSequence.current++}`;
     const item = typeof input === "string" ? { message: input, tone: "success" } : { tone: "info", ...input };
-    setToasts((current) => [...current, { id, ...item }]);
+    setToasts([{ id, ...item }]);
     setTimeout(() => setToasts((current) => current.filter((toastItem) => toastItem.id !== id)), item.durationMs ?? (item.action ? 10_000 : 4_000));
   };
 

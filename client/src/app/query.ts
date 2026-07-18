@@ -27,7 +27,7 @@ export const queryClient = new QueryClient({
           : 0;
         return failureCount < 2 && (status === 0 || status >= 500);
       },
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
     },
     mutations: { retry: false },
   },

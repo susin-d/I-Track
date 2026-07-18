@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import * as Icons from "lucide-react";
 import { useWorkspace } from "../workspace";
 import { api, apiResourceUrl } from "../../api";
+import { queryFn, queryKeys } from "../query";
 import { appConfirm, appForm, appPrompt } from "../components/AppDialog";
 import { Badge, CardTitle, Empty, LabelPicker, PageHead } from "../components/ui";
 import { fmt } from "../../utils/ui";
@@ -28,6 +30,7 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
     normalizedTicketId !== "null",
   );
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const {
     dashboard,
     mutate,
@@ -38,31 +41,16 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
     resources,
   } = useWorkspace();
   const [tab, setTab] = useState("comments");
-  const [directTicket, setDirectTicket] = useState<any>(null);
-  const [detailLoading, setDetailLoading] = useState(true);
-  const [detailError, setDetailError] = useState("");
 
   const dashboardTicket = (dashboard?.tickets || []).find(
     (item: any) => hasValidTicketId && item.ticketId === normalizedTicketId,
   );
-  useEffect(() => {
-    let active = true;
-    if (!hasValidTicketId) {
-      setDirectTicket(null);
-      setDetailLoading(false);
-      setDetailError("The ticket link is missing a valid ticket key.");
-      return () => { active = false; };
-    }
-    setDetailLoading(true);
-    setDetailError("");
-    void api<any>(`/tickets/${encodeURIComponent(normalizedTicketId!)}`)
-      .then((result) => { if (active) setDirectTicket(result.ticket); })
-      .catch((error) => { if (active) { setDirectTicket(null); setDetailError(error instanceof Error ? error.message : "Unable to load ticket"); } })
-      .finally(() => { if (active) setDetailLoading(false); });
-    return () => { active = false; };
-  }, [hasValidTicketId, normalizedTicketId]);
-
-  const raw = directTicket || (!detailLoading && !detailError ? dashboardTicket : null);
+  const detailQuery = useQuery({
+    queryKey: queryKeys.ticket(normalizedTicketId || "invalid"),
+    queryFn: queryFn<any>(`/tickets/${encodeURIComponent(normalizedTicketId || "")}`),
+    enabled: hasValidTicketId,
+  });
+  const raw = detailQuery.data?.ticket || (!detailQuery.isPending && !detailQuery.error ? dashboardTicket : null);
 
   const [title, setTitle] = useState(raw?.title || "");
   const [desc, setDesc] = useState(raw?.description || "");
@@ -76,12 +64,14 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
     ),
   );
   const [ticketLabels, setTicketLabels] = useState<string[]>(raw?.labels || []);
+  const [storyPoints, setStoryPoints] = useState(String(raw?.storyPoints ?? 0));
 
   useEffect(() => {
     if (!raw) return;
     setTitle(raw.title);
     setDesc(raw.description || "");
     setTicketLabels(raw.labels || []);
+    setStoryPoints(String(raw.storyPoints ?? 0));
     setAcceptanceCriteriaDone(
       (raw.acceptanceCriteria || []).map((_: string, index: number) =>
         Boolean(raw.acceptanceCriteriaDone?.[index]),
@@ -89,12 +79,16 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
     );
   }, [raw]);
 
-  if (detailLoading && !raw) return <div className="app-loading"><Icons.LoaderCircle className="spin" /><p>Loading ticket…</p></div>;
+  if (detailQuery.isPending && hasValidTicketId && !raw) return <div className="app-loading"><Icons.LoaderCircle className="spin" /><p>Loading ticket…</p></div>;
   if (!raw)
     return (
       <Empty
         title="Ticket not found"
-        body={detailError || "This ticket does not exist in the current workspace."}
+        body={!hasValidTicketId
+          ? "The ticket link is missing a valid ticket key."
+          : detailQuery.error instanceof Error
+            ? detailQuery.error.message
+            : "This ticket does not exist in the current workspace."}
         action={{ label: "Back to tickets", to: "/tickets" }}
       />
     );
@@ -105,12 +99,18 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
 
   const updateField = async (fields: any) => {
     try {
-      await mutate(() =>
+      const result = await mutate(() =>
         api(`/tickets/${raw._id}`, {
           method: "PATCH",
           body: JSON.stringify(fields),
         }),
       );
+      if (result?.ticket) {
+        queryClient.setQueryData(
+          queryKeys.ticket(normalizedTicketId || "invalid"),
+          result,
+        );
+      }
       toast("Ticket updated successfully");
       return true;
     } catch (err) {
@@ -123,6 +123,19 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
     const previous = ticketLabels;
     setTicketLabels(next);
     if (!(await updateField({ labels: next }))) setTicketLabels(previous);
+  };
+
+  const saveStoryPoints = async () => {
+    const next = Number(storyPoints);
+    if (!Number.isFinite(next) || next < 0) {
+      setStoryPoints(String(raw.storyPoints ?? 0));
+      toast("Story points must be zero or greater");
+      return;
+    }
+    if (next === Number(raw.storyPoints ?? 0)) return;
+    if (!(await updateField({ storyPoints: next }))) {
+      setStoryPoints(String(raw.storyPoints ?? 0));
+    }
   };
 
   const toggleAcceptanceCriterion = async (index: number) => {
@@ -728,10 +741,17 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
             <span>Story points</span>
             <input
               type="number"
-              value={raw.storyPoints || 0}
-              onChange={(e) =>
-                updateField({ storyPoints: Number(e.target.value) })
-              }
+              min="0"
+              value={storyPoints}
+              onChange={(e) => setStoryPoints(e.target.value)}
+              onBlur={() => void saveStoryPoints()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+                if (e.key === "Escape") {
+                  setStoryPoints(String(raw.storyPoints ?? 0));
+                  e.currentTarget.blur();
+                }
+              }}
               style={{ width: "80px" }}
             />
           </div>
