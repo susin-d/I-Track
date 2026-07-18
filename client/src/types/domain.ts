@@ -33,6 +33,7 @@ export type Ticket = {
   sprintName?: string;
   blocked?: boolean;
   watched?: boolean;
+  rank?: number;
 };
 
 export type Toast = { id: number; message: string };

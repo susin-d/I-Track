@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import * as Icons from "lucide-react";
-import { useWorkspace } from "../workspace";
+import { normalizeTicket, useWorkspace } from "../workspace";
 import { api } from "../../api";
 import { appPrompt, appForm, appConfirm } from "../components/AppDialog";
 import { Avatar, Badge, CardTitle, PageHead, Empty, ErrorState, FilterBar, LabelChips, LabelPicker, LoadingState, Pagination } from "../components/ui";
@@ -208,7 +208,7 @@ export function TicketTable({ rows }: { rows?: Ticket[] }) {
 export function TicketList() {
   const nav = useNavigate();
   const [params] = useSearchParams();
-  const { role, labelOptions } = useWorkspace();
+  const { role, labelOptions, user } = useWorkspace();
   const [rows, setRows] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -228,7 +228,7 @@ export function TicketList() {
     setLoading(true); setError("");
     void api<any>(`/tickets?${query.toString()}`).then((result) => {
       if (!active) return;
-      setRows(result.items || result.tickets || []);
+      setRows((result.items || result.tickets || []).map((ticket: any) => normalizeTicket(ticket, String(user?.id || user?._id || ""))));
       setTotal(Number(result.total) || 0);
       setNextCursor(result.nextCursor || null);
     }).catch((requestError) => {
@@ -240,7 +240,7 @@ export function TicketList() {
       }
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [params, cursor, reloadKey]);
+  }, [params, cursor, reloadKey, user?.id, user?._id]);
 
   useEffect(() => {
     setCursor(null);

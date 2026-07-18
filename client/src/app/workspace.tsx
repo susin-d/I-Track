@@ -5,6 +5,7 @@ import { ApiError, api, clearSession } from "../api";
 import { resourceKinds } from "../constants/resources";
 import { ErrorState, LoadingState } from "./components/ui";
 import { queryFn, queryKeys } from "./query";
+import type { Ticket } from "../types/domain";
 
 type WorkspaceValue = {
   user: any; company: any; organization: any; memberships: any[]; pendingInvitations: any[];
@@ -28,6 +29,37 @@ export function useWorkspace() {
 
 const emptyDashboard = { summary: {}, projects: [], sprints: [], cycles: [], tickets: [], users: [] };
 
+export function normalizeTicket(ticket: any, userId = ""): Ticket {
+  const assignee = ticket.assignee;
+  const project = ticket.project;
+  const sprint = ticket.sprint;
+  return {
+    id: String(ticket._id || ticket.id || ""),
+    key: ticket.ticketId || ticket.key || "",
+    ticketId: ticket.ticketId || ticket.key,
+    title: ticket.title || "Untitled ticket",
+    status: ticket.status || "Backlog",
+    priority: ticket.priority || "medium",
+    points: ticket.storyPoints ?? ticket.points ?? 0,
+    assignee: typeof assignee === "object" && assignee ? assignee.name || "Unassigned" : assignee || "Unassigned",
+    assigneeId: String((typeof assignee === "object" && assignee ? assignee._id || assignee.id : assignee) || ""),
+    project: typeof project === "object" && project ? project.name || "" : project || "",
+    labels: ticket.labels || [],
+    epic: ticket.epic || "",
+    dependencies: ticket.dependencies || [],
+    blocked: Boolean(ticket.blocked),
+    rank: ticket.rank ?? 0,
+    watched: (ticket.watchers || []).some((watcher: any) => String(watcher?._id || watcher?.id || watcher) === userId),
+    slaStatus: ticket.slaStatus,
+    firstResponseDueAt: ticket.firstResponseDueAt,
+    resolutionDueAt: ticket.resolutionDueAt,
+    firstRespondedAt: ticket.firstRespondedAt,
+    resolvedAt: ticket.resolvedAt,
+    sprintId: String((typeof sprint === "object" && sprint ? sprint._id || sprint.id : sprint) || ""),
+    sprintName: typeof sprint === "object" && sprint ? sprint.name || "" : "",
+  } as Ticket;
+}
+
 function parseDashboard(dashboard: any, userId: string) {
   const people = (dashboard.users || []).map((user: any) => ({
     name: user.name, email: user.email, role: user.role, skills: user.skills || [],
@@ -38,17 +70,7 @@ function parseDashboard(dashboard: any, userId: string) {
     description: project.description, progress: project.progress, status: project.status,
     risk: project.riskLevel, members: project.members?.length || 0, sprint: project.activeSprint,
   }));
-  const tickets = (dashboard.tickets || []).map((ticket: any) => ({
-    id: ticket._id, key: ticket.ticketId, title: ticket.title, status: ticket.status,
-    priority: ticket.priority, points: ticket.storyPoints, assignee: ticket.assignee?.name || "Unassigned",
-    assigneeId: String(ticket.assignee?._id || ticket.assignee || ""), project: ticket.project?.name || "",
-    labels: ticket.labels || [], blocked: ticket.blocked, rank: ticket.rank ?? 0,
-    watched: (ticket.watchers || []).some((watcher: any) => String(watcher._id || watcher) === userId),
-    slaStatus: ticket.slaStatus, firstResponseDueAt: ticket.firstResponseDueAt,
-    resolutionDueAt: ticket.resolutionDueAt, firstRespondedAt: ticket.firstRespondedAt,
-    resolvedAt: ticket.resolvedAt, sprintId: ticket.sprint?._id || (typeof ticket.sprint === "string" ? ticket.sprint : ""),
-    sprintName: ticket.sprint?.name || "",
-  }));
+  const tickets = (dashboard.tickets || []).map((ticket: any) => normalizeTicket(ticket, userId));
   const activeSprint = (dashboard.sprints || []).find((sprint: any) => sprint.status === "active") || dashboard.sprints?.[0];
   const velocity = (activeSprint?.velocityHistory || []).map((value: number, index: number) => ({ n: `S${index + 1}`, v: value }));
   const risk = (dashboard.sprints || []).slice(-5).map((sprint: any) => ({ n: sprint.name, v: sprint.riskScore }));
