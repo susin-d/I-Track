@@ -168,6 +168,25 @@
   margin-top: 17px !important;
 }
 
+.auth-form button.auth-switch {
+  display: block;
+  width: fit-content;
+  margin: 17px auto 8px !important;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--purple-strong);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.auth-form button.auth-switch:hover {
+  transform: none;
+  box-shadow: none;
+  text-decoration: underline;
+}
+
 .auth-divider {
   display: flex;
   align-items: center;
