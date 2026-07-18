@@ -170,31 +170,6 @@
   font-size: 12px;
 }
 
-.recommendation {
-  background: var(--lime);
-  color: #1a1a1a;
-  border: 0;
-}
-
-.recommendation h2 {
-  font-size: 21px;
-  margin-top: 18px;
-}
-
-.recommendation p {
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.recommendation > div {
-  display: flex;
-  justify-content: space-between;
-  border-top: 1px solid #1a1a1a25;
-  padding: 17px 0;
-  margin-top: 35px;
-  font-size: 12px;
-}
-
 /* Sprint Risk Page Custom Elements */
 .risk-gauge-svg {
   display: block;

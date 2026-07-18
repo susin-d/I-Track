@@ -28,9 +28,6 @@
   .dashboard-grid .span-2 {
     grid-column: auto;
   }
-  .dashboard-grid .insight {
-    grid-column: span 2;
-  }
   .project-grid,
   .resource-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -177,9 +174,6 @@
   }
   .cycle-create-panel {
     position: static;
-  }
-  .dashboard-grid .insight {
-    grid-column: auto;
   }
   .project-grid,
   .resource-grid,

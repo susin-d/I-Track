@@ -376,50 +376,25 @@ export function RiskPage() {
         </div>
       </div>
 
-      {/* ── Main grid: factors + recommendation ── */}
-      <div className="two-col">
-        <section className="card">
-          <CardTitle
-            title="Contributing factors"
-            sub="Why the score was computed"
-          />
-          <div className="factor-list">
-            {factors.map(([a, b, c, d]) => (
-              <div key={a}>
-                <i className={d} />
-                <span>
-                  <b>{a}</b>
-                  <small>{b}</small>
-                </span>
-                <strong>{c}</strong>
-              </div>
-            ))}
-          </div>
-        </section>
-        <section className="card recommendation">
-          <Badge tone="lime">
-            <Icons.Sparkles />
-            RECOMMENDED ACTION
-          </Badge>
-          {displayScore > 50 ? (
-            <>
-              <h2>Review blocked tickets and load balance</h2>
-              <p>
-                Move blocked tickets back to backlog or reassign to
-                unconstrained team members with matching skills.
-              </p>
-            </>
-          ) : (
-            <>
-              <h2>Maintain current course</h2>
-              <p>
-                Sprint delivery is proceeding smoothly. No urgent capacity
-                rebalancing required.
-              </p>
-            </>
-          )}
-        </section>
-      </div>
+      {/* ── Contributing factors ── */}
+      <section className="card">
+        <CardTitle
+          title="Contributing factors"
+          sub="Why the score was computed"
+        />
+        <div className="factor-list">
+          {factors.map(([a, b, c, d]) => (
+            <div key={a}>
+              <i className={d} />
+              <span>
+                <b>{a}</b>
+                <small>{b}</small>
+              </span>
+              <strong>{c}</strong>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* ── Second row: Ticket status + Assignee workload ── */}
       <div className="two-col" style={{ marginTop: "16px" }}>

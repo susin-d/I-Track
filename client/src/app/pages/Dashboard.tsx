@@ -33,7 +33,6 @@ export function DashboardLive() {
   const planned = Number(active?.plannedPoints) || 0;
   const completed = Number(active?.completedPoints) || 0;
   const progress = planned > 0 ? Math.round((completed / planned) * 100) : 0;
-  const recommendation = d.recommendation || {};
   const attentionTickets = Array.from(
     new Map(
       tickets
@@ -333,8 +332,8 @@ export function DashboardLive() {
           </div>
         </section>
 
-        {/* Row 3: Detailed Team Workload List (span-8) & AI Recommendation (span-4) */}
-        <section className="card span-8">
+        {/* Row 3: Detailed Team Workload List */}
+        <section className="card span-12">
           <CardTitle
             title="Active Team Load & Capacity"
             sub="Current weekly hours allocated out of workspace users"
@@ -357,21 +356,6 @@ export function DashboardLive() {
           </div>
         </section>
 
-        <section className="card insight span-4">
-          <div className="insight-icon">
-            <Icons.Sparkles />
-          </div>
-          <Badge tone="lime">LIVE RECOMMENDATION</Badge>
-          <h2>{recommendation.title || "No recommendation available"}</h2>
-          <p>
-            {recommendation.body ||
-              "Delivery signals will appear when workspace activity is available."}
-          </p>
-          <div className="confidence">
-            <span>Confidence</span>
-            <b>{recommendation.confidence ?? 0}%</b>
-          </div>
-        </section>
       </div>
     </>
   );

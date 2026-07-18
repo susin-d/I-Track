@@ -172,69 +172,6 @@
   color: var(--text);
 }
 
-/* Redesigned AI Insight Card */
-.insight {
-  background: linear-gradient(135deg, var(--lime) 0%, #b2d600 100%);
-  color: #1a1a1a;
-  border: 0;
-  display: flex;
-  align-items: flex-start;
-  flex-direction: column;
-  box-shadow: 0 8px 32px rgba(217, 245, 55, 0.2);
-}
-
-.insight:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(217, 245, 55, 0.35);
-}
-
-.insight .badge {
-  margin-top: 16px;
-  background: #1a1a1a;
-  color: var(--lime);
-  font-weight: 700;
-  letter-spacing: 0.5px;
-}
-
-.insight h2 {
-  font-size: 22px;
-  font-weight: 700;
-  margin: 16px 0 10px;
-  line-height: 1.3;
-}
-
-.insight p {
-  font-size: 13px;
-  line-height: 1.6;
-  opacity: 0.9;
-}
-
-.insight-icon {
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
-  background: #1a1a1a;
-  color: var(--lime);
-  display: grid;
-  place-items: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.confidence {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  border-top: 1px solid rgba(26, 26, 26, 0.1);
-  padding: 16px 0;
-  margin-top: 24px;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.confidence b {
-  font-weight: 700;
-}
-
 /* Metric Cards Refinement */
 .dashboard-metrics {
   display: grid;
