@@ -314,7 +314,7 @@ export function WorkModelPage() {
 
       <section className="work-model-key">
         <article><Icons.FolderTree size={18} /><div><strong>Two clear paths</strong><p>Project → Epic → Ticket and Project → Cycle → Sprint → Ticket.</p></div></article>
-        <article><Icons.GitMerge size={18} /><div><strong>One item, two views</strong><p>A task can appear in both paths because scope and scheduling are independent.</p></div></article>
+        <article><Icons.GitMerge size={18} /><div><strong>One ticket, two views</strong><p>A ticket can appear in both paths because scope and scheduling are independent.</p></div></article>
         <article><Icons.MousePointerClick size={18} /><div><strong>Explore the model</strong><p>Open any node for details, or expand ticket groups without leaving this view.</p></div></article>
       </section>
     </main>
