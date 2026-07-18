@@ -21,6 +21,12 @@ function LabelChips({ labels }: { labels: string[] }) {
 
 export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
   const { ticketId } = useParams();
+  const normalizedTicketId = ticketId?.trim();
+  const hasValidTicketId = Boolean(
+    normalizedTicketId &&
+    normalizedTicketId !== "undefined" &&
+    normalizedTicketId !== "null",
+  );
   const navigate = useNavigate();
   const {
     dashboard,
@@ -37,18 +43,24 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
   const [detailError, setDetailError] = useState("");
 
   const dashboardTicket = (dashboard?.tickets || []).find(
-    (item: any) => item.ticketId === ticketId,
+    (item: any) => hasValidTicketId && item.ticketId === normalizedTicketId,
   );
   useEffect(() => {
     let active = true;
+    if (!hasValidTicketId) {
+      setDirectTicket(null);
+      setDetailLoading(false);
+      setDetailError("The ticket link is missing a valid ticket key.");
+      return () => { active = false; };
+    }
     setDetailLoading(true);
     setDetailError("");
-    void api<any>(`/tickets/${encodeURIComponent(ticketId || "")}`)
+    void api<any>(`/tickets/${encodeURIComponent(normalizedTicketId!)}`)
       .then((result) => { if (active) setDirectTicket(result.ticket); })
       .catch((error) => { if (active) { setDirectTicket(null); setDetailError(error instanceof Error ? error.message : "Unable to load ticket"); } })
       .finally(() => { if (active) setDetailLoading(false); });
     return () => { active = false; };
-  }, [ticketId, dashboard?.tickets]);
+  }, [hasValidTicketId, normalizedTicketId]);
 
   const raw = directTicket || (!detailLoading && !detailError ? dashboardTicket : null);
 

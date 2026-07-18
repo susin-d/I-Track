@@ -220,6 +220,9 @@
     display: flex;
     overflow: auto;
   }
+  .security-grid {
+    grid-template-columns: 1fr;
+  }
   .auth {
     grid-template-columns: 1fr;
   }
@@ -518,6 +521,25 @@
   }
   .settings-nav button {
     white-space: nowrap;
+  }
+  .security-hero {
+    align-items: flex-start;
+    padding: 18px;
+  }
+  .security-status {
+    display: none;
+  }
+  .security-new-passwords,
+  .security-requirements > div {
+    grid-template-columns: 1fr;
+  }
+  .security-form-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .security-form-footer .btn {
+    width: 100%;
+    justify-content: center;
   }
   .pagination {
     align-items: flex-start;

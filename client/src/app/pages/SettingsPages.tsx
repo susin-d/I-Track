@@ -255,7 +255,6 @@ export function Settings({
   const [sprintLengthDays, setSprintLengthDays] = useState(organization?.settings?.sprintLengthDays ?? 14);
   const [weeklyCapacityHours, setWeeklyCapacityHours] = useState(organization?.settings?.weeklyCapacityHours ?? 40);
   const [timezone, setTimezone] = useState(organization?.settings?.timezone ?? "UTC");
-  const [aiEnabled, setAiEnabled] = useState(organization?.settings?.aiEnabled ?? true);
 
   useEffect(() => {
     if (currentUser) {
@@ -273,7 +272,6 @@ export function Settings({
       setSprintLengthDays(organization.settings.sprintLengthDays ?? 14);
       setWeeklyCapacityHours(organization.settings.weeklyCapacityHours ?? 40);
       setTimezone(organization.settings.timezone ?? "UTC");
-      setAiEnabled(organization.settings.aiEnabled ?? true);
     }
   }, [organization]);
 
@@ -316,7 +314,7 @@ export function Settings({
             sprintLengthDays: Number(sprintLengthDays),
             weeklyCapacityHours: Number(weeklyCapacityHours),
             timezone,
-            aiEnabled,
+            aiEnabled: organization?.settings?.aiEnabled ?? true,
           }),
         });
         return response;
@@ -472,10 +470,6 @@ export function Settings({
                   <span>Timezone</span>
                   <input value={timezone} onChange={(e) => setTimezone(e.target.value)} disabled={!isAdmin} />
                 </label>
-                <label className="check" style={{ gridColumn: "span 2", display: "flex", gap: "8px", alignItems: "center" }}>
-                  <input type="checkbox" checked={aiEnabled} onChange={(e) => setAiEnabled(e.target.checked)} disabled={!isAdmin} />
-                  <span>Enable AI Workspace and generative ticket tools</span>
-                </label>
                 {isAdmin && (
                   <button className="btn primary" type="submit" style={{ marginTop: "1rem" }}>
                     Save workspace settings
@@ -485,6 +479,196 @@ export function Settings({
             </section>
           )}
         </div>
+      </div>
+    </>
+  );
+}
+
+// ── Security ────────────────────────────────────────────────────────────────
+function SecurityPasswordField({
+  id,
+  label,
+  value,
+  onChange,
+  autoComplete,
+  hint,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  autoComplete: string;
+  hint?: string;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <label className="field security-password-field" htmlFor={id}>
+      <span>{label}</span>
+      <div className="security-password-input">
+        <input
+          id={id}
+          type={visible ? "text" : "password"}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          autoComplete={autoComplete}
+          required
+        />
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => setVisible((current) => !current)}
+          aria-label={`${visible ? "Hide" : "Show"} ${label.toLowerCase()}`}
+          aria-pressed={visible}
+        >
+          {visible ? <Icons.EyeOff /> : <Icons.Eye />}
+        </button>
+      </div>
+      {hint && <small>{hint}</small>}
+    </label>
+  );
+}
+
+export function Security({ toast }: { toast: (s: string) => void }) {
+  const navigate = useNavigate();
+  const { user, sessions = [] } = useWorkspace();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const requirements = [
+    { label: "At least 8 characters", met: newPassword.length >= 8 },
+    { label: "Contains a letter", met: /[A-Za-z]/.test(newPassword) },
+    { label: "Contains a number", met: /\d/.test(newPassword) },
+    { label: "Passwords match", met: Boolean(confirmPassword) && newPassword === confirmPassword },
+  ];
+  const canSubmit =
+    Boolean(currentPassword) &&
+    requirements.every((item) => item.met) &&
+    currentPassword !== newPassword &&
+    !busy;
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    if (newPassword !== confirmPassword) {
+      setError("New passwords do not match.");
+      return;
+    }
+    if (currentPassword === newPassword) {
+      setError("Choose a password different from your current password.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await api("/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      clearSession();
+      toast("Password changed. Sign in again with your new password.");
+      navigate("/login", { replace: true });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Password change failed");
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <PageHead title="Settings" desc="Manage your profile and workspace preferences." />
+      <div className="settings-layout">
+        <SettingsNav active="Security" />
+        <main className="security-settings">
+          <section className="security-hero">
+            <div className="security-hero-icon"><Icons.ShieldCheck /></div>
+            <div>
+              <span className="security-kicker">Account security</span>
+              <h2>Keep your account protected</h2>
+              <p>Update your password and review where your account is signed in.</p>
+            </div>
+            <span className="security-status"><Icons.CheckCircle2 /> Password protected</span>
+          </section>
+
+          <div className="security-grid">
+            <section className="card security-password-card">
+              <div className="security-section-heading">
+                <span><Icons.KeyRound /></span>
+                <div>
+                  <h2>Change password</h2>
+                  <p>Use a unique password you do not use anywhere else.</p>
+                </div>
+              </div>
+              <form onSubmit={submit} className="security-password-form">
+                <SecurityPasswordField
+                  id="current-password"
+                  label="Current password"
+                  value={currentPassword}
+                  onChange={setCurrentPassword}
+                  autoComplete="current-password"
+                  hint="Enter the password you currently use to sign in."
+                />
+                <div className="security-new-passwords">
+                  <SecurityPasswordField
+                    id="new-password"
+                    label="New password"
+                    value={newPassword}
+                    onChange={setNewPassword}
+                    autoComplete="new-password"
+                  />
+                  <SecurityPasswordField
+                    id="confirm-password"
+                    label="Confirm new password"
+                    value={confirmPassword}
+                    onChange={setConfirmPassword}
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div className="security-requirements" aria-live="polite">
+                  <strong>Your password should:</strong>
+                  <div>
+                    {requirements.map((item) => (
+                      <span className={item.met ? "met" : ""} key={item.label}>
+                        {item.met ? <Icons.CheckCircle2 /> : <Icons.Circle />}
+                        {item.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                {error && <div className="auth-message" role="alert">{error}</div>}
+                <div className="security-form-footer">
+                  <p><Icons.LogOut /> Changing your password signs you out on every device.</p>
+                  <button className="btn primary" type="submit" disabled={!canSubmit}>
+                    {busy ? "Updating password…" : "Update password"}
+                  </button>
+                </div>
+              </form>
+            </section>
+
+            <aside className="card security-account-card">
+              <div className="security-section-heading">
+                <span><Icons.UserRoundCheck /></span>
+                <div>
+                  <h2>Account overview</h2>
+                  <p>Your sign-in and session details.</p>
+                </div>
+              </div>
+              <dl>
+                <div><dt>Signed in as</dt><dd>{user?.email || "Current account"}</dd></div>
+                <div><dt>Active sessions</dt><dd>{sessions.length || 1}</dd></div>
+              </dl>
+              <button className="security-session-link" type="button" onClick={() => navigate("/sessions")}>
+                <span><Icons.MonitorSmartphone /><span><b>Manage active sessions</b><small>Review devices and revoke access</small></span></span>
+                <Icons.ArrowRight />
+              </button>
+              <div className="security-tip">
+                <Icons.Lightbulb />
+                <p><b>Security tip</b> Never share your password. I-Track will never ask for it by email or chat.</p>
+              </div>
+            </aside>
+          </div>
+        </main>
       </div>
     </>
   );

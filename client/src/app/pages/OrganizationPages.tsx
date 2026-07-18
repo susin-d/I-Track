@@ -3,7 +3,7 @@ import * as Icons from "lucide-react";
 import { useWorkspace } from "../workspace";
 import { api } from "../../api";
 import { clearSession } from "../../api";
-import { appConfirm, appForm, appPrompt } from "../components/AppDialog";
+import { appConfirm, appForm } from "../components/AppDialog";
 import { Avatar, Badge, CardTitle, Empty, PageHead, Progress } from "../components/ui";
 import { SettingsNav } from "./SettingsPages";
 import { fmt } from "../../utils/ui";
@@ -53,14 +53,23 @@ export function GroupsLive({ toast }: { toast: (s: string) => void }) {
   };
 
   const setMembers = async (group: any) => {
-    const current = (group.members || []).map((member: any) => member.email).join(", ");
-    const emails = await appPrompt("Member emails, separated by commas", current);
-    if (emails === null || !companyId) return;
-    const requested = emails.split(",").map((email) => email.trim().toLowerCase()).filter(Boolean);
-    const users = directory;
-    const missing = requested.filter((email) => !users.some((user: any) => String(user.email || "").toLowerCase() === email));
-    if (missing.length) return toast(`Not in the organization directory: ${missing.join(", ")}`);
-    const userIds = requested.map((email) => users.find((user: any) => String(user.email).toLowerCase() === email)?._id);
+    const current = (group.members || []).map((member: any) => String(member._id || member.id)).join(",");
+    const values = await appForm({
+      title: "Group members",
+      fields: [{
+        name: "userIds",
+        label: "Members",
+        type: "multiselect",
+        defaultValue: current,
+        options: directory.map((member: any) => ({
+          label: `${member.name || member.email} (${member.email})`,
+          value: String(member._id || member.id),
+        })),
+      }],
+      confirmLabel: "Save members",
+    });
+    if (!values || !companyId) return;
+    const userIds = values.userIds.split(",").filter(Boolean);
     try {
       await api(`/companies/${companyId}/groups/${group._id}/members`, { method: "PUT", body: JSON.stringify({ userIds }) });
       await load();
@@ -71,11 +80,18 @@ export function GroupsLive({ toast }: { toast: (s: string) => void }) {
   };
 
   const setWorkspaceAccess = async (group: any) => {
-    const currentNames = (group.workspaceAccess || []).map((grant: any) => workspaces.find((workspace: any) => String(workspace._id) === String(grant.workspace))?.name).filter(Boolean).join(", ");
+    const currentWorkspaceIds = (group.workspaceAccess || []).map((grant: any) => String(grant.workspace?._id || grant.workspace)).join(",");
     const values = await appForm({
       title: "Workspace access",
       fields: [
-        { name: "names", label: "Workspaces", defaultValue: currentNames, required: true, placeholder: "Separate names with commas" },
+        {
+          name: "workspaceIds",
+          label: "Workspaces",
+          type: "multiselect",
+          defaultValue: currentWorkspaceIds,
+          required: true,
+          options: workspaces.map((workspace: any) => ({ label: workspace.name, value: String(workspace._id) })),
+        },
         {
           name: "role",
           label: "Access role",
@@ -91,14 +107,11 @@ export function GroupsLive({ toast }: { toast: (s: string) => void }) {
       ],
       confirmLabel: "Save access",
     });
-    const names = values?.names;
-    if (names === undefined || !companyId) return;
+    const workspaceIds = values?.workspaceIds?.split(",").filter(Boolean);
+    if (!workspaceIds || !companyId) return;
     const role = values?.role;
     if (!role || !["manager", "engineer", "designer"].includes(role)) return toast("Choose a valid workspace role");
-    const requested = names.split(",").map((name) => name.trim().toLowerCase()).filter(Boolean);
-    const missing = requested.filter((name) => !workspaces.some((workspace: any) => workspace.name.toLowerCase() === name));
-    if (missing.length) return toast(`Unknown workspaces: ${missing.join(", ")}`);
-    const grants = requested.map((name) => ({ workspace: workspaces.find((workspace: any) => workspace.name.toLowerCase() === name)._id, role }));
+    const grants = workspaceIds.map((workspace) => ({ workspace, role }));
     try {
       await api(`/companies/${companyId}/groups/${group._id}/workspaces`, { method: "PUT", body: JSON.stringify({ grants }) });
       await load();

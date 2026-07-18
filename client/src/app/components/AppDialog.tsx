@@ -6,7 +6,7 @@ type DialogMode = "form" | "confirm";
 export type AppDialogField = {
   name: string;
   label: string;
-  type?: "text" | "password" | "number" | "date" | "textarea" | "select";
+  type?: "text" | "password" | "number" | "date" | "textarea" | "select" | "multiselect";
   defaultValue?: string;
   placeholder?: string;
   required?: boolean;
@@ -70,6 +70,7 @@ export function AppDialogHost() {
   const dialogRef = useRef<HTMLFormElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const [dateValues, setDateValues] = useState<Record<string, string>>({});
+  const [multiValues, setMultiValues] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     const listener: DialogListener = (request) => setQueue((current) => [...current, request]);
@@ -83,12 +84,17 @@ export function AppDialogHost() {
     if (!active) return;
     // Set initial date values
     const initialDates: Record<string, string> = {};
+    const initialMultiValues: Record<string, string[]> = {};
     (active.options.fields || []).forEach((field) => {
       if (field.type === "date") {
         initialDates[field.name] = field.defaultValue || "";
       }
+      if (field.type === "multiselect") {
+        initialMultiValues[field.name] = (field.defaultValue || "").split(",").filter(Boolean);
+      }
     });
     setDateValues(initialDates);
+    setMultiValues(initialMultiValues);
 
     const firstField = dialogRef.current?.querySelector<HTMLElement>("[data-dialog-autofocus]");
     (firstField || confirmRef.current)?.focus();
@@ -139,6 +145,9 @@ export function AppDialogHost() {
       (options.fields || []).map((field) => {
         if (field.type === "date") {
           return [field.name, dateValues[field.name] || ""];
+        }
+        if (field.type === "multiselect") {
+          return [field.name, formData.getAll(field.name).map((value) => value.toString()).join(",")];
         }
         return [field.name, formData.get(field.name)?.toString() || ""];
       }),
@@ -197,6 +206,45 @@ export function AppDialogHost() {
                   </label>
                 );
               }
+              if (field.type === "multiselect") {
+                const selectedValues = multiValues[field.name] || [];
+                const selectedLabels = (field.options || [])
+                  .filter((option) => selectedValues.includes(option.value))
+                  .map((option) => option.label);
+                return (
+                  <div className="app-dialog-field" key={field.name}>
+                    <span>{field.label}{field.required ? <b aria-hidden="true"> *</b> : null}</span>
+                    {selectedValues.map((value) => <input type="hidden" name={field.name} value={value} key={value} />)}
+                    <details className="app-dialog-multiselect">
+                      <summary
+                        className="app-dialog-input"
+                        data-dialog-autofocus={index === 0 ? "true" : undefined}
+                      >
+                        {selectedLabels.length ? `${selectedLabels.length} selected` : "Select options"}
+                      </summary>
+                      <div className="app-dialog-multiselect-menu">
+                        {(field.options || []).map((option) => (
+                          <label key={option.value}>
+                            <input
+                              type="checkbox"
+                              checked={selectedValues.includes(option.value)}
+                              onChange={() => setMultiValues((current) => ({
+                                ...current,
+                                [field.name]: selectedValues.includes(option.value)
+                                  ? selectedValues.filter((value) => value !== option.value)
+                                  : [...selectedValues, option.value],
+                              }))}
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        ))}
+                        {!field.options?.length && <small>No options available.</small>}
+                      </div>
+                    </details>
+                    {field.required && !selectedValues.length && <input className="app-dialog-required-proxy" required aria-hidden="true" tabIndex={-1} />}
+                  </div>
+                );
+              }
               if (field.type === "date") {
                 return (
                   <div className="app-dialog-field" key={field.name}>
@@ -239,4 +287,3 @@ export function AppDialogHost() {
     </div>
   );
 }
-

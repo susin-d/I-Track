@@ -491,6 +491,62 @@
   font-size: 14px;
 }
 
+.app-dialog-multiselect {
+  position: relative;
+}
+
+.app-dialog-multiselect > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.app-dialog-multiselect > summary::-webkit-details-marker {
+  display: none;
+}
+
+.app-dialog-multiselect > summary::after {
+  content: "▾";
+  float: right;
+}
+
+.app-dialog-multiselect-menu {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #dfe1e6);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(9 30 66 / 18%);
+  display: grid;
+  gap: 2px;
+  left: 0;
+  margin-top: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 6px;
+  position: absolute;
+  right: 0;
+  z-index: 2;
+}
+
+.app-dialog-multiselect-menu label {
+  align-items: center;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+}
+
+.app-dialog-multiselect-menu label:hover {
+  background: var(--surface-hover, #f4f5f7);
+}
+
+.app-dialog-required-proxy {
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  width: 1px;
+}
+
 .app-dialog-textarea {
   min-height: 108px;
   resize: vertical;

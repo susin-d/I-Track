@@ -7,7 +7,7 @@ import { DashboardLive } from "./pages/Dashboard";
 import { MyWork } from "./pages/MyWork";
 import { Notifications } from "./pages/NotificationsPage";
 import { Projects, ProjectDetail } from "./pages/ProjectPages";
-import { FormPage, ErrorPage, ChangePasswordLive, ImportExportLive } from "./pages/FormPage";
+import { FormPage, ErrorPage, ImportExportLive } from "./pages/FormPage";
 import { BacklogLive, SlaPage, AuditLogsLive, IntegrationsLive } from "./pages/OperationalPages";
 import { Board, CyclesLive, SprintsLive, SprintDetail, CompleteSprint } from "./pages/SprintPages";
 import { RiskPage } from "./pages/RiskPage";
@@ -22,6 +22,7 @@ const AIPage = React.lazy(() => import("./pages/AIPage").then((module) => ({ def
 const ResourcesLive = React.lazy(() => import("./pages/ResourcesLive").then((module) => ({ default: module.ResourcesLive })));
 const WorkModelPage = React.lazy(() => import("./pages/WorkModelPage").then((module) => ({ default: module.WorkModelPage })));
 const Settings = React.lazy(() => import("./pages/SettingsPages").then((module) => ({ default: module.Settings })));
+const Security = React.lazy(() => import("./pages/SettingsPages").then((module) => ({ default: module.Security })));
 const Sessions = React.lazy(() => import("./pages/SettingsPages").then((module) => ({ default: module.Sessions })));
 
 function AdminOnly({ children }: { children: React.ReactNode }) {
@@ -79,7 +80,7 @@ export function AppRoutes({
       <Route path="/organization" element={<AdminOnly><OrganizationLive toast={toast} /></AdminOnly>} />
       <Route path="/groups" element={<AdminOnly><GroupsLive toast={toast} /></AdminOnly>} />
       <Route path="/settings/*" element={<Settings theme={theme} setTheme={setTheme} density={density} setDensity={setDensity} toast={toast} />} />
-      <Route path="/change-password" element={<ChangePasswordLive toast={toast} />} />
+      <Route path="/change-password" element={<Security toast={toast} />} />
       <Route path="/sessions" element={<Sessions toast={toast} />} />
       <Route path="/integrations/*" element={<AdminOnly><IntegrationsLive toast={toast} /></AdminOnly>} />
       <Route path="/audit-logs" element={<AdminOnly><AuditLogsLive /></AdminOnly>} />
