@@ -5,7 +5,7 @@ import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAx
 import { useWorkspace } from "../workspace";
 import { api } from "../../api";
 import { appConfirm } from "../components/AppDialog";
-import { Avatar, Badge, CardTitle, PageHead, Progress, Empty, FilterBar, ViewToggle, LabelChips } from "../components/ui";
+import { Avatar, Badge, Button, CardTitle, PageHead, Progress, Empty, FilterBar, ViewToggle, LabelChips, ModalOverlay } from "../components/ui";
 import { fmt } from "../../utils/ui";
 import { matchesTicket, TicketTable } from "./TicketPages";
 import { RiskPage } from "./RiskPage";
@@ -767,9 +767,11 @@ export function CompleteSprint({ toast }: { toast: (s: string) => void }) {
       await mutate(() =>
         api(`/sprints/${s._id}/complete`, {
           method: "POST",
-          body: JSON.stringify({
-            moveIncompleteToSprint: destinationSprintId || null,
-          }),
+          body: JSON.stringify(
+            destinationSprintId
+              ? { moveIncompleteToSprint: destinationSprintId }
+              : {},
+          ),
         }),
       );
       toast("Sprint completed successfully");
@@ -1035,17 +1037,9 @@ export function CyclesLive({ toast }: { toast: (s: string) => void }) {
       </div>
 
       {isCreateOpen && (
-        <div
-          className="modal-wrap"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !creating) setIsCreateOpen(false);
-          }}
-        >
+        <ModalOverlay onClose={() => { if (!creating) setIsCreateOpen(false); }} ariaLabel="Create a cycle">
           <section
             className="card invite-review workspace-create-dialog"
-            role="dialog"
-            aria-modal="true"
             aria-labelledby="create-cycle-title"
             style={{ maxWidth: "500px", width: "100%" }}
           >
@@ -1114,16 +1108,16 @@ export function CyclesLive({ toast }: { toast: (s: string) => void }) {
                 </div>
               </div>
               <div className="form-actions">
-                <button className="btn" type="button" onClick={() => setIsCreateOpen(false)} disabled={creating}>
+                <Button onClick={() => setIsCreateOpen(false)} disabled={creating}>
                   Cancel
-                </button>
-                <button className="btn primary" type="submit" disabled={creating}>
-                  {creating ? "Creating..." : "Create cycle"}
-                </button>
+                </Button>
+                <Button variant="primary" type="submit" loading={creating} loadingLabel="Creating...">
+                  Create cycle
+                </Button>
               </div>
             </form>
           </section>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

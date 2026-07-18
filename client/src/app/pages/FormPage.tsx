@@ -4,10 +4,9 @@ import * as Icons from "lucide-react";
 import { useWorkspace } from "../workspace";
 import { api } from "../../api";
 import { clearSession } from "../../api";
-import { Badge, CardTitle, PageHead } from "../components/ui";
+import { Badge, Button, CardTitle, ModalOverlay, PageHead, PasswordInput } from "../components/ui";
 import { LabelPicker } from "../components/ui";
 import { fmt } from "../../utils/ui";
-import { PasswordInput } from "./AuthPages";
 import { MiniDatePicker } from "../components/MiniDatePicker";
 import { isEpicTicketType, TICKET_TYPES } from "../../constants/terminology";
 
@@ -503,15 +502,9 @@ export function FormPage({
         </div>
       </form>
       {inviteUrl && (
-        <div
-          className="modal-wrap"
-          role="presentation"
-          onMouseDown={(event) => event.target === event.currentTarget && void finishInvite()}
-        >
+        <ModalOverlay onClose={() => void finishInvite()} ariaLabel="Share this invitation">
           <section
             className="card invite-review invite-link-dialog"
-            role="dialog"
-            aria-modal="true"
             aria-labelledby="invite-link-title"
           >
             <button className="icon-btn modal-close" onClick={() => void finishInvite()} aria-label="Close invitation link dialog">
@@ -527,18 +520,18 @@ export function FormPage({
                 value={inviteUrl}
                 onFocus={(event) => event.currentTarget.select()}
               />
-              <button type="button" className="btn" onClick={() => void copyInviteLink()}>
+              <Button onClick={() => void copyInviteLink()}>
                 {inviteCopied ? <Icons.Check /> : <Icons.Copy />}
                 {inviteCopied ? "Copied" : "Copy link"}
-              </button>
+              </Button>
             </div>
             <div className="form-actions">
-              <button className="btn primary" type="button" onClick={() => void finishInvite()}>
+              <Button variant="primary" onClick={() => void finishInvite()}>
                 Done
-              </button>
+              </Button>
             </div>
           </section>
-        </div>
+        </ModalOverlay>
       )}
     </CenteredForm>
   );

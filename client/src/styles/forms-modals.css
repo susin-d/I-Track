@@ -22,6 +22,64 @@
   padding: 30px;
 }
 
+.completion-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.completion-summary > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.completion-summary strong {
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.completion-summary span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.center-form .callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.center-form .callout.warning {
+  border-color: color-mix(in srgb, var(--yellow) 35%, var(--border));
+  background: color-mix(in srgb, var(--yellow) 8%, var(--surface));
+}
+
+.center-form .callout > svg {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  color: var(--orange);
+}
+
+.center-form .callout + .btn {
+  margin-top: 14px;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -162,22 +162,22 @@
   gap: 12px;
 }
 
-.security-password-field small {
+.security-password-form .password-field small {
   margin-top: 1px;
   color: var(--muted);
   font-size: 9px;
 }
 
-.security-password-input {
+.security-password-form .password {
   position: relative;
 }
 
-.security-password-input input {
+.security-password-form .password input {
   width: 100%;
   padding-right: 42px;
 }
 
-.security-password-input .icon-btn {
+.security-password-form .password-toggle {
   position: absolute;
   top: 50%;
   right: 5px;
@@ -188,7 +188,7 @@
   color: var(--muted);
 }
 
-.security-password-input .icon-btn svg {
+.security-password-form .password-toggle svg {
   width: 16px;
 }
 

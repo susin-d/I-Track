@@ -2,27 +2,9 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams, NavLink } from "react-router-dom";
 import * as Icons from "lucide-react";
 import { api, hasSession, login, googleLoginUrl } from "../../api";
-import { Badge } from "../components/ui";
+import { Badge, PasswordInput } from "../components/ui";
 import { cx, fmt } from "../../utils/ui";
 import { appForm } from "../components/AppDialog";
-
-export function PasswordInput(props: Omit<React.InputHTMLAttributes<HTMLInputElement>, "type">) {
-  const [visible, setVisible] = useState(false);
-  return (
-    <div className="password">
-      <input {...props} type={visible ? "text" : "password"} />
-      <button
-        type="button"
-        className="password-toggle"
-        aria-label={visible ? "Hide password" : "Show password"}
-        aria-pressed={visible}
-        onClick={() => setVisible((current) => !current)}
-      >
-        {visible ? <Icons.EyeOff /> : <Icons.Eye />}
-      </button>
-    </div>
-  );
-}
 
 export function AuthPageLive({ type }: { type: string }) {
   const nav = useNavigate();

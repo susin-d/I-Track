@@ -142,6 +142,14 @@ test("authenticated PostgreSQL workspace flow", { skip: integrationEnabled ? fal
     const assignedTicket = await Ticket.findById(ticket._id);
     assert.equal(String(assignedTicket?.assignee), String(user._id));
 
+    const rankedTicket = await request(`/tickets/${ticket._id}/rank`, { method: "PATCH", body: JSON.stringify({ rank: "1000" }) });
+    assert.equal(rankedTicket.response.status, 200);
+    assert.equal(rankedTicket.body?.ticket?.rank, 1000);
+
+    const completedSprint = await request(`/sprints/${sprint._id}/complete`, { method: "POST", body: JSON.stringify({ moveIncompleteToSprint: null }) });
+    assert.equal(completedSprint.response.status, 200);
+    assert.equal(completedSprint.body?.sprint?.status, "completed");
+
     const commentResponse = await request(`/tickets/${ticket._id}/comments`, { method: "POST", body: JSON.stringify({ body: "Initial integration comment" }) });
     assert.equal(commentResponse.response.status, 201);
     const commentId = commentResponse.body?.ticket?.comments?.at(-1)?._id;

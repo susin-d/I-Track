@@ -4,7 +4,7 @@ import * as Icons from "lucide-react";
 import { useWorkspace } from "../workspace";
 import { api, apiFetch } from "../../api";
 import { appConfirm, appForm, appPrompt } from "../components/AppDialog";
-import { Badge, Empty, PageHead } from "../components/ui";
+import { Badge, Button, Empty, PageHead } from "../components/ui";
 import { TicketTable } from "./TicketPages";
 import { fmt } from "../../utils/ui";
 import { FilterBar } from "../components/ui";
@@ -68,12 +68,7 @@ export function SlaPage({ toast }: { toast: (s: string) => void }) {
 
   return (
     <div className="sla-page">
-      <header className="sla-page-head">
-        <div>
-          <span className="eyebrow">Service level management</span>
-          <h1>SLA overview</h1>
-          <p>Monitor commitments and set response targets for every priority.</p>
-        </div>
+      <PageHead className="sla-page-head" eyebrow="Service level management" title="SLA overview" desc="Monitor commitments and set response targets for every priority.">
         <div className="sla-head-note">
           <Icons.Clock3 />
           <div>
@@ -81,7 +76,7 @@ export function SlaPage({ toast }: { toast: (s: string) => void }) {
             <span>Due-soon tickets are within 4 hours</span>
           </div>
         </div>
-      </header>
+      </PageHead>
       <div className="sla-metrics">
         {[
           { label: "Breached", value: summary.breached, note: "Needs attention", tone: "red", icon: Icons.CircleAlert },
@@ -112,7 +107,7 @@ export function SlaPage({ toast }: { toast: (s: string) => void }) {
                 <p>How fast we respond and resolve by priority</p>
               </div>
             </div>
-            {!isLeader && <span className="badge">View only</span>}
+            {!isLeader && <Badge>View only</Badge>}
           </div>
           <form className="sla-policy-grid" onSubmit={savePolicy}>
             {(["critical", "high", "medium", "low"] as const).map((priority) => (
@@ -143,9 +138,7 @@ export function SlaPage({ toast }: { toast: (s: string) => void }) {
             {isLeader && (
               <div className="sla-policy-actions">
                 <span>Applies to all open tickets.</span>
-                <button className="btn primary" disabled={saving}>
-                  {saving ? "Saving..." : "Save policy"}
-                </button>
+                <Button variant="primary" type="submit" loading={saving} loadingLabel="Saving...">Save policy</Button>
               </div>
             )}
           </form>

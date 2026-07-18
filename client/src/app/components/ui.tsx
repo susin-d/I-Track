@@ -3,12 +3,32 @@ import { NavLink, useSearchParams } from "react-router-dom";
 import * as Icons from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-export function Button({ className = "", tone = "default", busy = false, children, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { tone?: "default" | "primary" | "danger"; busy?: boolean }) {
-  return <button className={`btn ${tone === "default" ? "" : tone} ${className}`.trim()} disabled={disabled || busy} aria-busy={busy || undefined} {...props}>{busy ? "Working…" : children}</button>;
+type ButtonVariant = "secondary" | "primary" | "outline" | "ghost" | "text" | "warning" | "danger";
+type ButtonSize = "sm" | "md" | "lg";
+
+export function Button({
+  className = "",
+  variant = "secondary",
+  size = "md",
+  loading = false,
+  loadingLabel = "Working…",
+  children,
+  disabled,
+  type = "button",
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  loading?: boolean;
+  loadingLabel?: React.ReactNode;
+}) {
+  const variantClass = variant === "secondary" ? "" : variant;
+  const sizeClass = size === "md" ? "" : size;
+  return <button type={type} className={`btn ${variantClass} ${sizeClass} ${className}`.trim()} disabled={disabled || loading} aria-busy={loading || undefined} {...props}>{loading ? loadingLabel : children}</button>;
 }
 
-export function IconButton({ label, className = "", onClick, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) {
-  return <button type="button" className={`icon-btn ${className}`.trim()} aria-label={label} title={label} onClick={onClick} {...props} />;
+export function IconButton({ label, className = "", size = "md", onClick, type = "button", ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string; size?: ButtonSize }) {
+  return <button type={type} className={`icon-btn ${size === "md" ? "" : size} ${className}`.trim()} aria-label={label} title={props.title || label} onClick={onClick} {...props} />;
 }
 
 export function FormField({ label, error, helper, children }: { label: string; error?: string; helper?: string; children: React.ReactNode }) {
@@ -21,6 +41,39 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
 });
 export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea(props, ref) {
   return <textarea ref={ref} {...props} />;
+});
+
+export const PasswordInput = React.forwardRef<HTMLInputElement, Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> & {
+  label?: string;
+  helper?: React.ReactNode;
+  error?: React.ReactNode;
+  wrapperClassName?: string;
+}>(function PasswordInput({ label, helper, error, wrapperClassName = "", id, ...props }, ref) {
+  const [visible, setVisible] = React.useState(false);
+  const generatedId = React.useId();
+  const inputId = id || (label ? generatedId : undefined);
+  const input = (
+    <div className={`password ${wrapperClassName}`.trim()}>
+      <input ref={ref} id={inputId} {...props} type={visible ? "text" : "password"} aria-invalid={error ? true : props["aria-invalid"]} />
+      <button
+        type="button"
+        className="password-toggle"
+        aria-label={`${visible ? "Hide" : "Show"} ${label?.toLowerCase() || "password"}`}
+        aria-pressed={visible}
+        onClick={() => setVisible((current) => !current)}
+      >
+        {visible ? <Icons.EyeOff /> : <Icons.Eye />}
+      </button>
+    </div>
+  );
+  if (!label) return input;
+  return (
+    <label className="field password-field" htmlFor={inputId}>
+      <span>{label}</span>
+      {input}
+      {(error || helper) && <small className={error ? "field-error" : undefined}>{error || helper}</small>}
+    </label>
+  );
 });
 
 export function Card({ as: Element = "section", className = "", ...props }: React.HTMLAttributes<HTMLElement> & { as?: "section" | "article" | "div" }) {
@@ -36,14 +89,16 @@ export function PageHead({
   title,
   desc,
   children,
+  className = "",
 }: {
   eyebrow?: string;
   title: React.ReactNode;
   desc?: React.ReactNode;
   children?: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="page-head">
+    <div className={`page-head ${className}`.trim()}>
       <div>
         {eyebrow && <span className="eyebrow">{eyebrow}</span>}
         <h1>{title}</h1>
@@ -311,16 +366,18 @@ export function normalizeLabels(values: readonly string[]): string[] {
 export function LabelChips({
   labels = [],
   empty,
+  tone = "neutral",
 }: {
   labels?: string[];
   empty?: React.ReactNode;
+  tone?: string;
 }) {
   const normalized = normalizeLabels(labels);
   if (!normalized.length) return empty ? <span>{empty}</span> : null;
   return (
     <div className="labels" aria-label="Ticket labels">
       {normalized.map((label) => (
-        <Badge key={label}>{label}</Badge>
+        <Badge key={label} tone={tone}>{label}</Badge>
       ))}
     </div>
   );
@@ -515,9 +572,21 @@ export function LabelPicker({
     </div>
   );
 }
-export function Avatar({ name, color }: { name: string; color?: string }) {
+export function Avatar({
+  name,
+  color,
+  shape = "circle",
+  size = "md",
+  className = "",
+}: {
+  name: string;
+  color?: string;
+  shape?: "circle" | "square";
+  size?: ButtonSize;
+  className?: string;
+}) {
   return (
-    <span className="avatar" style={{ background: color }} aria-hidden="true">
+    <span className={`avatar ${shape === "square" ? "square" : ""} ${size === "md" ? "" : size} ${className}`.trim()} style={{ background: color }} aria-hidden="true">
       {name
         .split(" ")
         .map((s) => s[0])

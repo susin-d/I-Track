@@ -6,20 +6,8 @@ import { useWorkspace } from "../workspace";
 import { api, apiResourceUrl } from "../../api";
 import { queryFn, queryKeys } from "../query";
 import { appConfirm, appForm, appPrompt } from "../components/AppDialog";
-import { Badge, CardTitle, Empty, LabelPicker, PageHead } from "../components/ui";
+import { CardTitle, Empty, LabelChips, LabelPicker, PageHead } from "../components/ui";
 import { fmt } from "../../utils/ui";
-
-function LabelChips({ labels }: { labels: string[] }) {
-  return (
-    <div style={{ display: "flex", gap: "5px", flexWrap: "wrap", margin: "5px 0" }}>
-      {labels.map((l) => (
-        <Badge key={l} tone="purple">
-          {l}
-        </Badge>
-      ))}
-    </div>
-  );
-}
 
 export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
   const { ticketId } = useParams();

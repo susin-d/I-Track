@@ -5,7 +5,7 @@ import { useWorkspace } from "./workspace";
 import { api, clearSession } from "../api";
 import { appForm, appPrompt } from "./components/AppDialog";
 import { nav } from "./navigation";
-import { Badge } from "./components/ui";
+import { Avatar, Badge, Button, ModalOverlay } from "./components/ui";
 import { CustomMarkdown } from "./components/Markdown";
 import { AiAgentPanel } from "./components/AiAgent";
 import { AiAgentProvider } from "./components/AiAgent";
@@ -198,7 +198,7 @@ export function Shell({
           </div>
           <div className="company-context-wrap">
             <button className="company-context" onClick={() => { setWorkspaceMenu(false); setCompanyMenu(!companyMenu); }} aria-haspopup="menu" aria-expanded={companyMenu}>
-              <span className="avatar">{(company?.name || organization?.name || "O").slice(0, 2).toUpperCase()}</span>
+              <Avatar name={company?.name || organization?.name || "O"} />
               <span><b>{company?.name || organization?.name || "Organization"}</b></span>
               <Icons.ChevronsUpDown size={14} />
             </button>
@@ -207,7 +207,7 @@ export function Shell({
                 <p>ORGANIZATIONS</p>
                 {companies.map((item) => {
                   const selected = String(item.id || item._id) === String(company?.id || company?._id);
-                  return <button key={item.id || item._id} className={selected ? "selected" : ""} role="menuitem" onClick={() => selected ? setCompanyMenu(false) : void switchCompany(item)}><span className="avatar">{item.name.slice(0, 2).toUpperCase()}</span><span><b>{item.name}</b><small>{selected ? "Current organization" : fmt(item.role)}</small></span>{selected && <Icons.Check size={16} />}</button>;
+                  return <button key={item.id || item._id} className={selected ? "selected" : ""} role="menuitem" onClick={() => selected ? setCompanyMenu(false) : void switchCompany(item)}><Avatar name={item.name} /><span><b>{item.name}</b><small>{selected ? "Current organization" : fmt(item.role)}</small></span>{selected && <Icons.Check size={16} />}</button>;
                 })}
                 <hr />
                 <button role="menuitem" onClick={() => { setCompanyMenu(false); navigate("/organization"); }}><Icons.Settings size={17} /><span><b>Organization settings</b><small>Directory, groups and workspaces</small></span></button>
@@ -216,13 +216,7 @@ export function Shell({
           </div>
           <div className="workspace-switcher">
             <button className="org-switch" aria-haspopup="menu" aria-expanded={workspaceMenu} onClick={() => setWorkspaceMenu(!workspaceMenu)}>
-              <span className="avatar square">
-                {(organization?.name || "Workspace")
-                  .split(" ")
-                  .map((x: string) => x[0])
-                  .join("")
-                  .slice(0, 2)}
-              </span>
+              <Avatar name={organization?.name || "Workspace"} shape="square" />
               <span>
                 <b>{organization?.name || "Workspace"}</b>
                 <small>Current workspace · {fmt(organization?.plan || "starter")}</small>
@@ -241,7 +235,7 @@ export function Shell({
                   });
                   return companyMemberships.map((membership: any) => {
                     const selected = String(membership.organization?.id) === String(organization?.id || organization?._id);
-                    return <button key={membership.id} className={selected ? "selected" : ""} role="menuitem" onClick={() => selected ? setWorkspaceMenu(false) : switchWorkspace(membership.organization.id)}><span className="avatar square">{(membership.organization?.name || "W").slice(0, 2).toUpperCase()}</span><span><b>{membership.organization?.name}</b><small>{selected ? "Current workspace" : fmt(membership.role)}</small></span>{selected && <Icons.Check size={16} />}</button>;
+                    return <button key={membership.id} className={selected ? "selected" : ""} role="menuitem" onClick={() => selected ? setWorkspaceMenu(false) : switchWorkspace(membership.organization.id)}><Avatar name={membership.organization?.name || "W"} shape="square" /><span><b>{membership.organization?.name}</b><small>{selected ? "Current workspace" : fmt(membership.role)}</small></span>{selected && <Icons.Check size={16} />}</button>;
                   });
                 })()}
                 {(() => {
@@ -252,7 +246,7 @@ export function Shell({
                     return !invCompanyId || invCompanyId === activeCompanyId;
                   });
                   return companyPendingInvitations.map((invitation: any) => (
-                    <button key={invitation.id} role="menuitem" onClick={() => { setWorkspaceMenu(false); setSelectedInvitation(invitation); }}><span className="avatar square bg-orange">{(invitation.organization?.name || "W").slice(0, 2).toUpperCase()}</span><span><b>{invitation.organization?.name}</b><small>Pending invitation</small></span><Icons.Clock size={16} /></button>
+                    <button key={invitation.id} role="menuitem" onClick={() => { setWorkspaceMenu(false); setSelectedInvitation(invitation); }}><Avatar name={invitation.organization?.name || "W"} shape="square" className="bg-orange" /><span><b>{invitation.organization?.name}</b><small>Pending invitation</small></span><Icons.Clock size={16} /></button>
                   ));
                 })()}
               </div>
@@ -276,7 +270,7 @@ export function Shell({
           <div className="sidebar-footer">
             <button className="btn" onClick={() => setAiPanel(!aiPanel)}><Icons.Sparkles size={16} /><span>Ask I-Track AI</span></button>
             <div className="user-profile">
-              <span className="avatar" style={{ background: currentUser?.avatarColor || "#7c3aed" }}>{currentUser?.name?.slice(0, 2).toUpperCase()}</span>
+              <Avatar name={currentUser?.name || "User"} color={currentUser?.avatarColor || "#7c3aed"} />
               <span><b>{currentUser?.name}</b><small>{currentUser?.email}</small></span>
               <NavLink to="/settings/profile" aria-label="Settings"><Icons.Settings size={18} /></NavLink>
             </div>
@@ -328,8 +322,8 @@ export function Shell({
         <main id="main-content" tabIndex={-1}>{children}</main>
 
         {selectedInvitation && (
-          <div className="modal-wrap" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setSelectedInvitation(null)}>
-            <section className="card invite-review" role="dialog" aria-modal="true" aria-labelledby="invite-review-title">
+          <ModalOverlay onClose={() => setSelectedInvitation(null)} ariaLabel="Workspace invitation">
+            <section className="card invite-review" aria-labelledby="invite-review-title">
               <button className="icon-btn modal-close" onClick={() => setSelectedInvitation(null)} aria-label="Close invitation"><Icons.X /></button>
               <Badge tone="blue">WORKSPACE INVITATION</Badge>
               <h2 id="invite-review-title">Join {selectedInvitation.organization?.name}</h2>
@@ -340,11 +334,11 @@ export function Shell({
                 <span>Email <b>{selectedInvitation.email}</b></span>
               </div>
               <div className="form-actions">
-                <button className="btn" onClick={() => setSelectedInvitation(null)}>Not now</button>
-                <button className="btn primary" onClick={acceptPendingInvitation}>Accept and open workspace</button>
+                <Button onClick={() => setSelectedInvitation(null)}>Not now</Button>
+                <Button variant="primary" onClick={acceptPendingInvitation}>Accept and open workspace</Button>
               </div>
             </section>
-          </div>
+          </ModalOverlay>
         )}
 
         <nav className="bottom-nav" aria-label="Mobile navigation">

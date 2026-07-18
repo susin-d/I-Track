@@ -4,7 +4,7 @@ import { useWorkspace } from "../workspace";
 import { api } from "../../api";
 import { clearSession } from "../../api";
 import { appConfirm, appForm } from "../components/AppDialog";
-import { Avatar, Badge, CardTitle, Empty, PageHead, Progress } from "../components/ui";
+import { Avatar, Badge, Button, CardTitle, Empty, ModalOverlay, PageHead, Progress } from "../components/ui";
 import { SettingsNav } from "./SettingsPages";
 import { fmt } from "../../utils/ui";
 
@@ -199,7 +199,7 @@ export function GroupsLive({ toast }: { toast: (s: string) => void }) {
               <div className="group-access-list">
                 {(group.workspaceAccess || []).map((grant: any) => {
                   const workspace = workspaces.find((item: any) => String(item._id) === String(grant.workspace));
-                  return <div key={grant._id || `${grant.workspace}-${grant.role}`}><span className="avatar square">{(workspace?.name || "W").slice(0, 2).toUpperCase()}</span><span><b>{workspace?.name || "Workspace"}</b><small>Inherited access for every group member</small></span><Badge tone="purple">{fmt(grant.role)}</Badge></div>;
+                  return <div key={grant._id || `${grant.workspace}-${grant.role}`}><Avatar name={workspace?.name || "W"} shape="square" /><span><b>{workspace?.name || "Workspace"}</b><small>Inherited access for every group member</small></span><Badge tone="purple">{fmt(grant.role)}</Badge></div>;
                 })}
                 {!group.workspaceAccess?.length && <div className="group-empty"><Icons.Building2 /><span><b>No workspace access</b><small>Grant a role in one or more workspaces.</small></span></div>}
               </div>
@@ -344,7 +344,7 @@ export function OrganizationLive({ toast }: { toast: (s: string) => void }) {
             <div className="workspace-overview-list">
               {workspaces.map((workspace) => (
                 <button key={workspace._id} onClick={() => switchToCreatedWorkspace(workspace)}>
-                  <span className="avatar square">{workspace.name.slice(0, 2).toUpperCase()}</span>
+                  <Avatar name={workspace.name} shape="square" />
                   <span><b>{workspace.name}</b><small>{workspace.slug}</small></span>
                   {String(workspace._id) === String(org?._id || org?.id) ? <Badge tone="green">Current</Badge> : <Icons.ChevronRight />}
                 </button>
@@ -411,17 +411,9 @@ export function OrganizationLive({ toast }: { toast: (s: string) => void }) {
         </div>
       </div>
       {createWorkspaceOpen && (
-        <div
-          className="modal-wrap"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !creatingWorkspace) setCreateWorkspaceOpen(false);
-          }}
-        >
+        <ModalOverlay onClose={() => { if (!creatingWorkspace) setCreateWorkspaceOpen(false); }} ariaLabel="Create a workspace">
           <section
             className="card invite-review workspace-create-dialog"
-            role="dialog"
-            aria-modal="true"
             aria-labelledby="create-workspace-title"
           >
             <button
@@ -450,16 +442,16 @@ export function OrganizationLive({ toast }: { toast: (s: string) => void }) {
                 />
               </label>
               <div className="form-actions">
-                <button className="btn" type="button" onClick={() => setCreateWorkspaceOpen(false)} disabled={creatingWorkspace}>
+                <Button onClick={() => setCreateWorkspaceOpen(false)} disabled={creatingWorkspace}>
                   Cancel
-                </button>
-                <button className="btn primary" type="submit" disabled={creatingWorkspace || workspaceName.trim().length < 2}>
-                  {creatingWorkspace ? "Creating…" : "Create workspace"}
-                </button>
+                </Button>
+                <Button variant="primary" type="submit" loading={creatingWorkspace} loadingLabel="Creating…" disabled={workspaceName.trim().length < 2}>
+                  Create workspace
+                </Button>
               </div>
             </form>
           </section>
-        </div>
+        </ModalOverlay>
       )}
     </>
   );

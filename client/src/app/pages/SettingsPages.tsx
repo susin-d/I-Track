@@ -4,7 +4,7 @@ import * as Icons from "lucide-react";
 import { useWorkspace } from "../workspace";
 import { api } from "../../api";
 import { logout, clearSession } from "../../api";
-import { Badge, CardTitle, Empty, PageHead } from "../components/ui";
+import { Badge, CardTitle, Empty, PageHead, PasswordInput } from "../components/ui";
 import { fmt } from "../../utils/ui";
 import type { NotificationPreferences } from "../../types/domain";
 
@@ -484,50 +484,6 @@ export function Settings({
   );
 }
 
-// ── Security ────────────────────────────────────────────────────────────────
-function SecurityPasswordField({
-  id,
-  label,
-  value,
-  onChange,
-  autoComplete,
-  hint,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  autoComplete: string;
-  hint?: string;
-}) {
-  const [visible, setVisible] = useState(false);
-  return (
-    <label className="field security-password-field" htmlFor={id}>
-      <span>{label}</span>
-      <div className="security-password-input">
-        <input
-          id={id}
-          type={visible ? "text" : "password"}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          autoComplete={autoComplete}
-          required
-        />
-        <button
-          type="button"
-          className="icon-btn"
-          onClick={() => setVisible((current) => !current)}
-          aria-label={`${visible ? "Hide" : "Show"} ${label.toLowerCase()}`}
-          aria-pressed={visible}
-        >
-          {visible ? <Icons.EyeOff /> : <Icons.Eye />}
-        </button>
-      </div>
-      {hint && <small>{hint}</small>}
-    </label>
-  );
-}
-
 export function Security({ toast }: { toast: (s: string) => void }) {
   const navigate = useNavigate();
   const { user, sessions = [] } = useWorkspace();
@@ -601,28 +557,31 @@ export function Security({ toast }: { toast: (s: string) => void }) {
                 </div>
               </div>
               <form onSubmit={submit} className="security-password-form">
-                <SecurityPasswordField
+                <PasswordInput
                   id="current-password"
                   label="Current password"
                   value={currentPassword}
-                  onChange={setCurrentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
                   autoComplete="current-password"
-                  hint="Enter the password you currently use to sign in."
+                  helper="Enter the password you currently use to sign in."
+                  required
                 />
                 <div className="security-new-passwords">
-                  <SecurityPasswordField
+                  <PasswordInput
                     id="new-password"
                     label="New password"
                     value={newPassword}
-                    onChange={setNewPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
                     autoComplete="new-password"
+                    required
                   />
-                  <SecurityPasswordField
+                  <PasswordInput
                     id="confirm-password"
                     label="Confirm new password"
                     value={confirmPassword}
-                    onChange={setConfirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
                     autoComplete="new-password"
+                    required
                   />
                 </div>
                 <div className="security-requirements" aria-live="polite">
