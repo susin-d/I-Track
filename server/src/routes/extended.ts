@@ -262,7 +262,18 @@ router.post("/tickets/:id/attachments/presign", async (req: AuthRequest, res) =>
   const storageKey = `${oid(req)}/${ticket._id}/${id}-${body.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
   const storage = attachmentStorage();
   if (!storage.createSignedUploadUrl) return res.status(503).json({ message: "Attachment storage is unavailable" });
-  const upload = await storage.createSignedUploadUrl(storageKey);
+  let upload;
+  try {
+    upload = await storage.createSignedUploadUrl(storageKey);
+  } catch (error) {
+    console.error("Unable to create a signed attachment upload URL", {
+      bucket: env.attachmentBucket,
+      error,
+    });
+    return res.status(503).json({
+      message: "Attachment storage is unavailable. Please try again shortly.",
+    });
+  }
   await postgres.query("INSERT INTO ticket_attachments (id, organization, ticket, name, storage_key, mime_type, size, uploaded_by, upload_status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')", [id, oid(req), ticket._id, body.name, storageKey, body.mimeType, body.size, uid(req)]);
   return res.status(201).json({ attachment: { id, name: body.name, mimeType: body.mimeType, size: body.size, uploadStatus: "pending" }, upload });
 });

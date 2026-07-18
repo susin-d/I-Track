@@ -1,21 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
 import * as Icons from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { PageHead } from "../components/ui";
 import { useWorkspace } from "../workspace";
-
-type MapNodeProps = {
-  className: string;
-  icon: LucideIcon;
-  eyebrow: string;
-  title: string;
-  count: number;
-  countLabel: string;
-  description: string;
-  to: string;
-  chips: string[];
-};
 
 function recordId(value: any) {
   return String(value?._id || value?.id || value || "");
@@ -25,62 +12,50 @@ function projectIdFor(value: any) {
   return recordId(value?.project);
 }
 
-function evidenceCount(ticket: any) {
-  return [
-    ...(ticket.acceptanceCriteria || []),
-    ...(ticket.comments || []),
-    ...(ticket.workLogs || []),
-    ...(ticket.attachments || []),
-  ].length;
+function sprintIdFor(value: any) {
+  return recordId(value?.sprint);
 }
 
-function MapNode({
-  className,
-  icon: Icon,
-  eyebrow,
-  title,
-  count,
-  countLabel,
-  description,
+function NodeLink({
   to,
-  chips,
-}: MapNodeProps) {
-  return (
-    <NavLink className={`work-model-node ${className}`} to={to}>
-      <div className="work-model-node-head">
-        <span className="work-model-node-icon"><Icon size={20} /></span>
-        <span className="work-model-node-count">{count}</span>
-      </div>
-      <span className="work-model-node-eyebrow">{eyebrow}</span>
-      <h2>{title}</h2>
-      <p>{description}</p>
-      <div className="work-model-node-footer">
-        <span>{countLabel}</span>
-        <Icons.ArrowUpRight size={15} />
-      </div>
-      {chips.length > 0 && (
-        <div className="work-model-chips" aria-label={`${title} examples`}>
-          {chips.slice(0, 3).map((chip, index) => <span key={`${chip}-${index}`}>{chip}</span>)}
-          {chips.length > 3 && <span>+{chips.length - 3}</span>}
-        </div>
-      )}
-    </NavLink>
-  );
+  className,
+  children,
+}: {
+  to: string;
+  className: string;
+  children: React.ReactNode;
+}) {
+  return <NavLink className={`work-model-tree-node ${className}`} to={to}>{children}</NavLink>;
 }
 
-function Connector({
-  className,
-  label,
-  type = "record",
+function WorkItems({
+  tickets,
+  empty,
 }: {
-  className: string;
-  label: string;
-  type?: "record" | "association";
+  tickets: any[];
+  empty: string;
 }) {
+  if (tickets.length === 0) {
+    return <div className="work-model-empty"><Icons.CircleDashed size={15} />{empty}</div>;
+  }
+
   return (
-    <div className={`work-model-connector ${className} ${type}`}>
-      <span>{label}</span>
-      <div aria-hidden="true"><i /><Icons.ChevronRight size={18} /></div>
+    <div className="work-model-item-list">
+      {tickets.slice(0, 4).map((ticket: any) => (
+        <NavLink className="work-model-item" key={recordId(ticket)} to={`/tickets/${recordId(ticket)}`}>
+          <span className={`work-model-item-type ${String(ticket.issueType || "task").toLowerCase()}`}>
+            {ticket.issueType || "Task"}
+          </span>
+          <span>
+            <strong>{ticket.ticketId || "Work item"}</strong>
+            <small>{ticket.title}</small>
+          </span>
+          <Icons.ChevronRight size={14} />
+        </NavLink>
+      ))}
+      {tickets.length > 4 && (
+        <NavLink className="work-model-more" to="/tickets">+{tickets.length - 4} more work items</NavLink>
+      )}
     </div>
   );
 }
@@ -89,6 +64,7 @@ export function WorkModelPage() {
   const { dashboard, projects } = useWorkspace();
   const rawProjects = dashboard?.projects || [];
   const rawSprints = dashboard?.sprints || [];
+  const rawCycles = dashboard?.cycles || [];
   const rawTickets = dashboard?.tickets || [];
   const [selectedProjectId, setSelectedProjectId] = useState(() => recordId(rawProjects[0]));
 
@@ -97,37 +73,61 @@ export function WorkModelPage() {
     || projects[0];
   const activeProjectId = recordId(selectedProject);
 
-  const projectData = useMemo(() => {
+  const model = useMemo(() => {
     const sprints = rawSprints.filter((sprint: any) => projectIdFor(sprint) === activeProjectId);
+    const sprintIds = new Set(sprints.map(recordId));
     const tickets = rawTickets.filter((ticket: any) => projectIdFor(ticket) === activeProjectId);
-    const epics = Array.from(new Set<string>(
+    const epicNames = Array.from(new Set<string>(
       tickets.map((ticket: any) => String(ticket.epic || "").trim()).filter(Boolean),
     ));
-    const dependencies = tickets.flatMap((ticket: any) =>
-      (ticket.dependencies || []).map((dependency: any) => String(dependency)),
+    const epics = epicNames.map((name) => ({
+      name,
+      tickets: tickets.filter((ticket: any) => String(ticket.epic || "").trim() === name),
+    }));
+    const cycles = rawCycles
+      .map((cycle: any) => ({
+        ...cycle,
+        projectSprints: sprints.filter((sprint: any) =>
+          (cycle.sprints || []).some((value: any) => recordId(value) === recordId(sprint)),
+        ),
+      }))
+      .filter((cycle: any) => cycle.projectSprints.length > 0);
+    const ungroupedSprints = sprints.filter((sprint: any) =>
+      !cycles.some((cycle: any) => cycle.projectSprints.some((item: any) => recordId(item) === recordId(sprint))),
     );
-    const evidence = tickets.reduce((total: number, ticket: any) => total + evidenceCount(ticket), 0);
+    const backlog = tickets.filter((ticket: any) => !sprintIds.has(sprintIdFor(ticket)));
 
-    return { sprints, tickets, epics, dependencies, evidence };
-  }, [activeProjectId, rawSprints, rawTickets]);
+    return { tickets, epics, cycles, ungroupedSprints, backlog };
+  }, [activeProjectId, rawCycles, rawSprints, rawTickets]);
 
-  const projectPath = activeProjectId ? `/projects/${activeProjectId}` : "/projects";
-  const sprintPath = projectData.sprints[0] ? `/sprints/${recordId(projectData.sprints[0])}` : "/sprints";
+  const renderSprint = (sprint: any) => {
+    const sprintTickets = model.tickets.filter((ticket: any) => sprintIdFor(ticket) === recordId(sprint));
+    return (
+      <article className="work-model-subtree sprint" key={recordId(sprint)}>
+        <NodeLink className="sprint" to={`/sprints/${recordId(sprint)}`}>
+          <span className="work-model-node-icon"><Icons.Timer size={17} /></span>
+          <span>
+            <small>Sprint · {sprint.status || "planned"}</small>
+            <strong>{sprint.name}</strong>
+          </span>
+          <b>{sprintTickets.length}</b>
+        </NodeLink>
+        <WorkItems tickets={sprintTickets} empty="No work assigned to this sprint" />
+      </article>
+    );
+  };
 
   return (
     <main className="work-model-page">
       <PageHead
         eyebrow="Workspace structure"
-        title="How work connects"
-        desc="Follow the implemented relationship from a project and its epic associations through sprints, tickets, dependencies, and delivery evidence."
+        title="Project work map"
+        desc="A mind map of the selected project, showing its planning groups and the work organized beneath each one."
       >
         {rawProjects.length > 0 && (
           <label className="work-model-project-picker">
             <span>Project</span>
-            <select
-              value={activeProjectId}
-              onChange={(event) => setSelectedProjectId(event.target.value)}
-            >
+            <select value={activeProjectId} onChange={(event) => setSelectedProjectId(event.target.value)}>
               {rawProjects.map((project: any) => (
                 <option key={recordId(project)} value={recordId(project)}>
                   {project.key} · {project.name}
@@ -138,120 +138,103 @@ export function WorkModelPage() {
         )}
       </PageHead>
 
-      <section className="work-model-legend" aria-label="Relationship legend">
-        <span><i className="record" /> Record link</span>
-        <span><i className="association" /> Name-based association</span>
-        <span><Icons.MousePointerClick size={14} /> Select a card to open that product area</span>
+      <section className="work-model-summary" aria-label="Project totals">
+        <span><Icons.Map size={15} /><strong>{model.epics.length}</strong> epics</span>
+        <span><Icons.Timer size={15} /><strong>{model.cycles.reduce((sum: number, cycle: any) => sum + cycle.projectSprints.length, 0) + model.ungroupedSprints.length}</strong> sprints</span>
+        <span><Icons.TicketCheck size={15} /><strong>{model.tickets.length}</strong> work items</span>
+        <p><Icons.Info size={14} />Epics and sprints are two views of the same work items—not parent and child of each other.</p>
       </section>
 
-      <section className="work-model-canvas" aria-label="Project work relationship map">
-        <div className="work-model-chain">
-          <MapNode
-            className="project"
-            icon={Icons.FolderKanban}
-            eyebrow="Starting context"
-            title={selectedProject?.name || "No project yet"}
-            count={selectedProject ? 1 : 0}
-            countLabel={selectedProject?.key || "Create a project"}
-            description="Owns delivery context, access, sprints, and ticket numbering."
-            to={projectPath}
-            chips={selectedProject?.status ? [selectedProject.status, selectedProject.riskLevel || selectedProject.risk].filter(Boolean) : []}
-          />
-
-          <Connector className="project-to-epic" label="offers epic context" type="association" />
-
-          <MapNode
-            className="epic"
-            icon={Icons.Map}
-            eyebrow="Epic association"
-            title="Epic associations"
-            count={projectData.epics.length}
-            countLabel={projectData.epics.length === 1 ? "epic name in use" : "epic names in use"}
-            description="Tickets share an epic name; the ticket does not store an epic resource ID."
-            to="/resources/epic"
-            chips={projectData.epics}
-          />
-
-          <Connector className="epic-to-ticket" label="matches epic name" type="association" />
-
-          <MapNode
-            className="ticket"
-            icon={Icons.TicketCheck}
-            eyebrow="Delivery record"
-            title="Tickets and tasks"
-            count={projectData.tickets.length}
-            countLabel={projectData.tickets.length === 1 ? "ticket" : "tickets"}
-            description="Stories and tasks persist as ticket records under the selected project and optional sprint."
-            to="/tickets"
-            chips={projectData.tickets.map((ticket: any) => ticket.ticketId || ticket.title)}
-          />
-
-          <Connector className="project-to-sprint" label="owns delivery windows" />
-
-          <MapNode
-            className="sprint"
-            icon={Icons.Timer}
-            eyebrow="Project record link"
-            title="Sprints"
-            count={projectData.sprints.length}
-            countLabel={projectData.sprints.length === 1 ? "sprint" : "sprints"}
-            description="Every sprint belongs to one project and provides dates, capacity, and delivery status."
-            to={sprintPath}
-            chips={projectData.sprints.map((sprint: any) => sprint.name)}
-          />
-
-          <Connector className="sprint-to-ticket" label="assigns optional sprint" />
+      <section className="work-model-mindmap" aria-label="Project hierarchy mind map">
+        <div className="work-model-root-wrap">
+          <NodeLink className="project" to={activeProjectId ? `/projects/${activeProjectId}` : "/projects"}>
+            <span className="work-model-node-icon"><Icons.FolderKanban size={22} /></span>
+            <span>
+              <small>Project · {selectedProject?.key || "—"}</small>
+              <strong>{selectedProject?.name || "No project yet"}</strong>
+              <em>Root of this work map</em>
+            </span>
+            <b>{model.tickets.length}</b>
+          </NodeLink>
         </div>
 
-        <div className="work-model-outcomes">
-          <div className="work-model-outcome-connector" aria-hidden="true"><span /></div>
-          <MapNode
-            className="dependency"
-            icon={Icons.GitBranch}
-            eyebrow="Flow signal"
-            title="Dependencies"
-            count={projectData.dependencies.length}
-            countLabel={projectData.dependencies.length === 1 ? "dependency entry" : "dependency entries"}
-            description="Dependency values connect delivery order and mark affected tickets as blocked."
-            to="/tickets"
-            chips={projectData.dependencies}
-          />
-          <MapNode
-            className="evidence"
-            icon={Icons.ClipboardCheck}
-            eyebrow="Delivery record"
-            title="Evidence"
-            count={projectData.evidence}
-            countLabel="evidence items"
-            description="Acceptance criteria, comments, work logs, and attachments preserve delivery proof."
-            to="/tickets"
-            chips={["Acceptance criteria", "Comments", "Work logs", "Attachments"]}
-          />
+        <div className="work-model-branches">
+          <section className="work-model-branch epic-branch">
+            <header>
+              <span><Icons.Map size={18} /></span>
+              <div><small>Scope hierarchy</small><h2>Epics</h2></div>
+              <b>{model.epics.length}</b>
+            </header>
+            <p className="work-model-branch-help">Epics group related stories, tasks, and bugs by outcome.</p>
+            <div className="work-model-groups">
+              {model.epics.map((epic) => (
+                <article className="work-model-subtree epic" key={epic.name}>
+                  <NodeLink className="epic" to="/resources/epic">
+                    <span className="work-model-node-icon"><Icons.Flag size={17} /></span>
+                    <span><small>Epic</small><strong>{epic.name}</strong></span>
+                    <b>{epic.tickets.length}</b>
+                  </NodeLink>
+                  <WorkItems tickets={epic.tickets} empty="No work in this epic" />
+                </article>
+              ))}
+              {model.epics.length === 0 && <div className="work-model-empty large">No epic names are used in this project yet.</div>}
+              {model.tickets.some((ticket: any) => !String(ticket.epic || "").trim()) && (
+                <article className="work-model-subtree neutral">
+                  <div className="work-model-tree-node neutral">
+                    <span className="work-model-node-icon"><Icons.Inbox size={17} /></span>
+                    <span><small>Outside an epic</small><strong>Unassigned work</strong></span>
+                    <b>{model.tickets.filter((ticket: any) => !String(ticket.epic || "").trim()).length}</b>
+                  </div>
+                  <WorkItems
+                    tickets={model.tickets.filter((ticket: any) => !String(ticket.epic || "").trim())}
+                    empty="All work has an epic"
+                  />
+                </article>
+              )}
+            </div>
+          </section>
+
+          <section className="work-model-branch sprint-branch">
+            <header>
+              <span><Icons.CalendarRange size={18} /></span>
+              <div><small>Time hierarchy</small><h2>Cycles & sprints</h2></div>
+              <b>{model.cycles.length}</b>
+            </header>
+            <p className="work-model-branch-help">Cycles contain sprints; sprints contain their assigned work.</p>
+            <div className="work-model-groups">
+              {model.cycles.map((cycle: any) => (
+                <article className="work-model-cycle" key={recordId(cycle)}>
+                  <NodeLink className="cycle" to="/cycles">
+                    <span className="work-model-node-icon"><Icons.RefreshCw size={17} /></span>
+                    <span><small>Cycle · {cycle.status || "planned"}</small><strong>{cycle.name}</strong></span>
+                    <b>{cycle.projectSprints.length}</b>
+                  </NodeLink>
+                  <div className="work-model-cycle-sprints">{cycle.projectSprints.map(renderSprint)}</div>
+                </article>
+              ))}
+              {model.ungroupedSprints.map(renderSprint)}
+              {model.backlog.length > 0 && (
+                <article className="work-model-subtree backlog">
+                  <NodeLink className="backlog" to="/backlog">
+                    <span className="work-model-node-icon"><Icons.ListTodo size={17} /></span>
+                    <span><small>No sprint</small><strong>Project backlog</strong></span>
+                    <b>{model.backlog.length}</b>
+                  </NodeLink>
+                  <WorkItems tickets={model.backlog} empty="Backlog is empty" />
+                </article>
+              )}
+              {model.cycles.length === 0 && model.ungroupedSprints.length === 0 && model.backlog.length === 0 && (
+                <div className="work-model-empty large">No sprint planning exists for this project yet.</div>
+              )}
+            </div>
+          </section>
         </div>
       </section>
 
-      <section className="work-model-details">
-        <article className="card">
-          <div className="work-model-detail-icon"><Icons.Link2 size={18} /></div>
-          <div>
-            <h2>What is structurally linked</h2>
-            <p>A sprint has a real project reference. Every ticket requires a project, and a sprint assignment is optional.</p>
-          </div>
-        </article>
-        <article className="card">
-          <div className="work-model-detail-icon amber"><Icons.Tags size={18} /></div>
-          <div>
-            <h2>What is associated by name</h2>
-            <p>The ticket stores epic text rather than an epic record ID. Matching epic names group tickets in the UI.</p>
-          </div>
-        </article>
-        <article className="card">
-          <div className="work-model-detail-icon green"><Icons.Layers3 size={18} /></div>
-          <div>
-            <h2>Current planning boundary</h2>
-            <p>AI creates a story and task plan, but persistence produces a coordinated flat ticket set—not native parent/child subtasks.</p>
-          </div>
-        </article>
+      <section className="work-model-key">
+        <article><Icons.FolderTree size={18} /><div><strong>What is under what?</strong><p>Workspace → Project → Epic → Work item, and Workspace → Project → Cycle → Sprint → Work item.</p></div></article>
+        <article><Icons.GitMerge size={18} /><div><strong>One item, two views</strong><p>A task can appear under both an epic and a sprint because scope and scheduling are independent.</p></div></article>
+        <article><Icons.Database size={18} /><div><strong>Actual data model</strong><p>Sprints and tickets link directly to projects. Epic membership is matched using the epic name.</p></div></article>
       </section>
     </main>
   );

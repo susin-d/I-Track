@@ -87,6 +87,10 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
       />
     );
 
+  const isWatching = (raw.watchers || []).some(
+    (watcher: any) => String(watcher._id || watcher) === String(currentUser?.id),
+  );
+
   const updateField = async (fields: any) => {
     try {
       await mutate(() =>
@@ -126,16 +130,13 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
   };
 
   const watch = async () => {
-    const watched = (raw.watchers || []).some(
-      (w: any) => String(w._id || w) === String(currentUser?.id),
-    );
     try {
       await mutate(() =>
         api(`/tickets/${raw._id}/watch`, {
-          method: watched ? "DELETE" : "POST",
+          method: isWatching ? "DELETE" : "POST",
         }),
       );
-      toast(watched ? "Ticket unwatched" : "Ticket watched");
+      toast(isWatching ? "Ticket unwatched" : "Ticket watched");
     } catch (err) {
       toast(err instanceof Error ? err.message : "Action failed");
     }
@@ -477,9 +478,13 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
           <Icons.Copy />
           Copy key
         </button>
-        <button className="btn" onClick={watch}>
+        <button
+          className={`btn${isWatching ? " primary" : ""}`}
+          onClick={watch}
+          aria-pressed={isWatching}
+        >
           <Icons.Eye />
-          Watch
+          {isWatching ? "Watching" : "Watch"}
         </button>
         {isLeader && (
           <button className="btn" onClick={clone}>

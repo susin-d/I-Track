@@ -402,7 +402,21 @@ export function LabelPicker({
         )
       ) : (
         <div className="label-dropdown-trigger-wrap">
-          <div className={`label-dropdown-trigger${open ? " open" : ""}`} role="group" aria-label={label}>
+          <div
+            className={`label-dropdown-trigger${open ? " open" : ""}`}
+            role="button"
+            tabIndex={0}
+            aria-haspopup="listbox"
+            aria-expanded={open}
+            aria-label={open ? `Close ${label} picker` : `Open ${label} picker`}
+            onClick={() => setOpen((value) => !value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setOpen((value) => !value);
+              }
+            }}
+          >
             <span className="label-dropdown-trigger-text">
               {normalizedLabels.length > 0 ? (
                 <span className="label-picker-chips label-picker-chips--inline">
@@ -412,7 +426,10 @@ export function LabelPicker({
                       <button
                         type="button"
                         className="label-chip-remove"
-                        onClick={() => remove(item)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          remove(item);
+                        }}
                         aria-label={`Remove label ${item}`}
                       >
                         <Icons.X size={10} />
@@ -421,25 +438,14 @@ export function LabelPicker({
                   ))}
                 </span>
               ) : (
-                <button
-                  type="button"
-                  className="label-dropdown-placeholder"
-                  onClick={() => setOpen((v) => !v)}
-                >
+                <span className="label-dropdown-placeholder">
                   Select labels…
-                </button>
+                </span>
               )}
             </span>
-            <button
-              type="button"
-              className="label-dropdown-chevron-button"
-              onClick={() => setOpen((v) => !v)}
-              aria-haspopup="listbox"
-              aria-expanded={open}
-              aria-label={open ? `Close ${label} picker` : `Open ${label} picker`}
-            >
-            <Icons.ChevronDown size={14} className="label-dropdown-chevron" />
-            </button>
+            <span className="label-dropdown-chevron-button" aria-hidden="true">
+              <Icons.ChevronDown size={14} className="label-dropdown-chevron" />
+            </span>
           </div>
 
           {open && (
