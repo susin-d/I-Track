@@ -1,6 +1,0 @@
-[2m7:12:29 PM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/v1/auth/refresh[39m
-Error: read ECONNRESET
-    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
-[2m7:12:29 PM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/v1/auth/me[39m
-Error: read ECONNRESET
-    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)

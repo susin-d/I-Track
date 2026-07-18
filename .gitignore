@@ -7,3 +7,20 @@ dist/
 !client/.env.production
 client/dist/
 server/dist/
+
+# TypeScript incremental build metadata
+*.tsbuildinfo
+
+# Browser and test artifacts
+test-results/
+playwright-report/
+blob-report/
+coverage/
+
+# Local generated documents and temporary runtime files
+/output/
+/tmp/
+
+# Logs and local uploads
+*.log
+server/uploads/
