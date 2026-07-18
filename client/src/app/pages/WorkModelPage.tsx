@@ -47,14 +47,14 @@ function WorkItems({
             {ticket.issueType || "Task"}
           </span>
           <span>
-            <strong>{ticket.ticketId || "Work item"}</strong>
+            <strong>{ticket.ticketId || "Ticket"}</strong>
             <small>{ticket.title}</small>
           </span>
           <Icons.ChevronRight size={14} />
         </NavLink>
       ))}
       {tickets.length > 4 && (
-        <NavLink className="work-model-more" to="/tickets">+{tickets.length - 4} more work items</NavLink>
+        <NavLink className="work-model-more" to="/tickets">+{tickets.length - 4} more tickets</NavLink>
       )}
     </div>
   );
@@ -141,8 +141,8 @@ export function WorkModelPage() {
       <section className="work-model-summary" aria-label="Project totals">
         <span><Icons.Map size={15} /><strong>{model.epics.length}</strong> epics</span>
         <span><Icons.Timer size={15} /><strong>{model.cycles.reduce((sum: number, cycle: any) => sum + cycle.projectSprints.length, 0) + model.ungroupedSprints.length}</strong> sprints</span>
-        <span><Icons.TicketCheck size={15} /><strong>{model.tickets.length}</strong> work items</span>
-        <p><Icons.Info size={14} />Epics and sprints are two views of the same work items—not parent and child of each other.</p>
+        <span><Icons.TicketCheck size={15} /><strong>{model.tickets.length}</strong> tickets</span>
+        <p><Icons.Info size={14} />Epics group tickets by outcome; sprints schedule tickets for delivery. Neither contains the other.</p>
       </section>
 
       <section className="work-model-mindmap" aria-label="Project hierarchy mind map">
@@ -232,7 +232,7 @@ export function WorkModelPage() {
       </section>
 
       <section className="work-model-key">
-        <article><Icons.FolderTree size={18} /><div><strong>What is under what?</strong><p>Workspace → Project → Epic → Work item, and Workspace → Project → Cycle → Sprint → Work item.</p></div></article>
+        <article><Icons.FolderTree size={18} /><div><strong>What is under what?</strong><p>Workspace → Project → optional Epic → Ticket, and Workspace → Project → Cycle → Sprint → Ticket.</p></div></article>
         <article><Icons.GitMerge size={18} /><div><strong>One item, two views</strong><p>A task can appear under both an epic and a sprint because scope and scheduling are independent.</p></div></article>
         <article><Icons.Database size={18} /><div><strong>Actual data model</strong><p>Sprints and tickets link directly to projects. Epic membership is matched using the epic name.</p></div></article>
       </section>

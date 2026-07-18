@@ -9,6 +9,7 @@ import { LabelPicker } from "../components/ui";
 import { fmt } from "../../utils/ui";
 import { PasswordInput } from "./AuthPages";
 import { MiniDatePicker } from "../components/MiniDatePicker";
+import { isEpicTicketType, TICKET_TYPES } from "../../constants/terminology";
 
 export function CenteredForm({
   title,
@@ -182,8 +183,11 @@ export function FormPage({
             storyPoints: Number(values.get("storyPoints")),
             dueDate: values.get("dueDate"),
             status: "Backlog",
-            acceptanceCriteria: [],
-            epic: values.get("epic") || "Product backlog",
+            acceptanceCriteria: String(values.get("acceptanceCriteria") || "")
+              .split(/\r?\n/)
+              .map((criterion) => criterion.trim())
+              .filter(Boolean),
+            epic: values.get("epic") || "",
             issueType: values.get("issueType") || "Task",
             customFields: customFieldValues,
             labels: ticketLabels,
@@ -258,7 +262,7 @@ export function FormPage({
                   <span className="hs-desc">A technical sub-task</span>
                 </div>
               </div>
-              <p className="hierarchy-hint">Each ticket you create belongs to an <strong>Epic</strong>. The AI Task Architect can automatically break an Epic down into Stories and Tasks for you.</p>
+              <p className="hierarchy-hint">An <strong>Epic</strong> can optionally group related tickets. A <strong>Sprint</strong> schedules tickets for delivery, independently of their Epic.</p>
             </div>
             <label className="field full">
               <span>Title</span>
@@ -267,6 +271,17 @@ export function FormPage({
             <label className="field full">
               <span>Description</span>
               <textarea name="description" placeholder="Add context, constraints, and expected outcome…" required />
+            </label>
+            <label className="field full">
+              <span>Acceptance criteria</span>
+              <textarea
+                name="acceptanceCriteria"
+                placeholder={"Enter one testable condition per line…\nUser can sign in with valid credentials\nInvalid credentials show a clear error"}
+                aria-describedby="acceptance-criteria-hint"
+              />
+              <small id="acceptance-criteria-hint">
+                Add one condition per line. These become the checklist used to confirm the ticket is complete.
+              </small>
             </label>
             <label className="field">
               <span>Project</span>
@@ -288,8 +303,8 @@ export function FormPage({
             </label>
             <label className="field">
               <span>Epic</span>
-              <select name="epic" defaultValue="Product backlog">
-                <option value="Product backlog">Product backlog</option>
+              <select name="epic" defaultValue="">
+                <option value="">No epic</option>
                 {(resources?.epic || []).map((epic: any) => (
                   <option key={epic._id || epic.id} value={epic.name}>{epic.name}</option>
                 ))}
@@ -314,10 +329,12 @@ export function FormPage({
               </select>
             </label>
             <label className="field">
-              <span>Issue type</span>
+              <span>Ticket type</span>
               <select name="issueType" defaultValue="Task">
-                <option value="Task">Task</option>
-                {(resources?.["issue-type"] || []).map((item: any) => <option key={item._id || item.id} value={item.name}>{item.name}</option>)}
+                {TICKET_TYPES.map((ticketType) => <option key={ticketType} value={ticketType}>{ticketType}</option>)}
+                {(resources?.["issue-type"] || [])
+                  .filter((item: any) => !isEpicTicketType(item.name) && !TICKET_TYPES.some((ticketType) => ticketType.toLowerCase() === String(item.name).trim().toLowerCase()))
+                  .map((item: any) => <option key={item._id || item.id} value={item.name}>{item.name}</option>)}
               </select>
             </label>
             {(resources?.["custom-field"] || []).map((field: any) => {

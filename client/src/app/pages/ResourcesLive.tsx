@@ -16,11 +16,12 @@ import { WorkflowVisualEditor } from "../components/WorkflowVisualEditor";
 import { Badge, CardTitle, Empty, FilterBar, PageHead, Progress } from "../components/ui";
 import { fmt } from "../../utils/ui";
 import { resourceKinds } from "../../constants/resources";
+import { resourceDisplayName } from "../../constants/terminology";
 
 async function collectResourceDefinition(kind: string, current?: any) {
   const feat = ALL_RESOURCE_FEATURE_CONFIG[kind as ResourceKind];
   const fields = [
-    { name: "name", label: `${current ? "Name" : "Name for"} ${fmt(kind)}`, defaultValue: current?.name || "", required: true },
+    { name: "name", label: `${current ? "Name" : "Name for"} ${resourceDisplayName(kind)}`, defaultValue: current?.name || "", required: true },
     { name: "description", label: "Description", type: "textarea" as const, defaultValue: current?.description || "" },
     { name: "key", label: "Key (optional)", defaultValue: current?.key || "" },
     ...(feat?.fields || []).map((field: any) => {
@@ -39,9 +40,9 @@ async function collectResourceDefinition(kind: string, current?: any) {
     }),
   ];
   const values = await appForm({
-    title: `${current ? "Edit" : "Create"} ${fmt(kind)}`,
+    title: `${current ? "Edit" : "Create"} ${resourceDisplayName(kind)}`,
     fields,
-    confirmLabel: current ? "Save changes" : `Create ${fmt(kind)}`,
+    confirmLabel: current ? "Save changes" : `Create ${resourceDisplayName(kind)}`,
   });
   if (!values?.name?.trim()) return null;
   const config = { ...(current?.config || {}) };
@@ -78,7 +79,7 @@ export function ResourcesLive({ toast }: { toast: (s: string) => void }) {
             body: JSON.stringify({ ...data, status: editingItem.status || "active", order: editingItem.order || 0 }),
           })
         );
-        toast(`${fmt(visualModalKind)} updated`);
+        toast(`${resourceDisplayName(visualModalKind)} updated`);
       } else {
         const currentRows = resources[visualModalKind] || [];
         await mutate(() =>
@@ -87,7 +88,7 @@ export function ResourcesLive({ toast }: { toast: (s: string) => void }) {
             body: JSON.stringify({ ...data, status: "active", order: currentRows.length }),
           })
         );
-        toast(`${fmt(visualModalKind)} created`);
+        toast(`${resourceDisplayName(visualModalKind)} created`);
       }
     } catch (err) {
       toast(err instanceof Error ? err.message : "Save failed");
@@ -132,7 +133,7 @@ export function ResourcesLive({ toast }: { toast: (s: string) => void }) {
       if (!(await appConfirm(`Are you sure you want to delete ${item.name}?`))) return;
       try {
         await mutate(() => api(`/resources/${kind}/${item._id}`, { method: "DELETE" }));
-        toast(`${fmt(kind)} deleted`);
+        toast(`${resourceDisplayName(kind)} deleted`);
       } catch (err) {
         toast(err instanceof Error ? err.message : "Deletion failed");
       }
@@ -186,12 +187,12 @@ export function ResourcesLive({ toast }: { toast: (s: string) => void }) {
 
     return (
       <>
-        <PageHead title={fmt(kind)} desc={ALL_RESOURCE_FEATURE_CONFIG[kind]?.description || `Manage live ${fmt(kind).toLowerCase()} definitions.`}>
+        <PageHead title={resourceDisplayName(kind)} desc={ALL_RESOURCE_FEATURE_CONFIG[kind]?.description || `Manage live ${resourceDisplayName(kind).toLowerCase()} definitions.`}>
           <div className="flex gap" style={{ display: "flex", gap: "8px" }}>
             <button className={`btn ${viewMode === "grid" ? "primary" : "outline"}`} onClick={() => setViewMode("grid")}><Icons.LayoutGrid className="w-4 h-4" /> Cards View</button>
             <button className={`btn ${viewMode === "table" ? "primary" : "outline"}`} onClick={() => setViewMode("table")}><Icons.Table className="w-4 h-4" /> Table View</button>
             {kind === "workflow" && <button className="btn outline" onClick={() => setWorkflowViewMode("visual")}><Icons.GitBranch className="w-4 h-4" /> Visual Canvas</button>}
-            {isLeader && <button className="btn primary" onClick={openCreateModal}><Icons.Plus />New {fmt(kind)}</button>}
+            {isLeader && <button className="btn primary" onClick={openCreateModal}><Icons.Plus />New {resourceDisplayName(kind)}</button>}
           </div>
         </PageHead>
         <FilterBar />
@@ -206,7 +207,7 @@ export function ResourcesLive({ toast }: { toast: (s: string) => void }) {
                 const progress = Math.max(0, Math.min(100, Number(item.config?.progress || 0)));
                 return (
                   <article key={item._id}>
-                    <span><Badge tone={kind === "release" ? "purple" : "blue"}>{item.config?.version || fmt(kind)}</Badge><small>{item.config?.owner || "Unassigned"}</small></span>
+                    <span><Badge tone={kind === "release" ? "purple" : "blue"}>{item.config?.version || resourceDisplayName(kind)}</Badge><small>{item.config?.owner || "Unassigned"}</small></span>
                     <b>{item.name}</b>
                     <small>{start || "No start date"} → {end || "No target date"}</small>
                     <Progress value={progress} tone={progress >= 80 ? "green" : "purple"} />
@@ -236,7 +237,7 @@ export function ResourcesLive({ toast }: { toast: (s: string) => void }) {
                 </div>
               ))}
             </div>
-          ) : <Empty title={`No ${fmt(kind).toLowerCase()}`} />
+          ) : <Empty title={`No ${resourceDisplayName(kind).toLowerCase()}`} />
         ) : (
           <section className="card no-pad">
             {rows.length ? (
@@ -275,7 +276,7 @@ export function ResourcesLive({ toast }: { toast: (s: string) => void }) {
                   ))}
                 </tbody>
               </table>
-            ) : <Empty title={`No ${fmt(kind).toLowerCase()}`} />}
+            ) : <Empty title={`No ${resourceDisplayName(kind).toLowerCase()}`} />}
           </section>
         )}
 
@@ -298,7 +299,7 @@ export function ResourcesLive({ toast }: { toast: (s: string) => void }) {
       (activeCategory === "attributes" && feat?.category === "attributes") ||
       (activeCategory === "governance" && feat?.category === "governance") ||
       (activeCategory === "automation" && feat?.category === "automation");
-    const searchMatch = !searchFilter.trim() || fmt(k).toLowerCase().includes(searchFilter.toLowerCase()) || feat?.description.toLowerCase().includes(searchFilter.toLowerCase());
+    const searchMatch = !searchFilter.trim() || resourceDisplayName(k).toLowerCase().includes(searchFilter.toLowerCase()) || feat?.description.toLowerCase().includes(searchFilter.toLowerCase());
     return categoryMatch && searchMatch;
   });
 
@@ -335,8 +336,8 @@ export function ResourcesLive({ toast }: { toast: (s: string) => void }) {
             <article className="card resource-card" key={resourceKind} onClick={() => navigate(`/resources/${resourceKind}`)}>
               <span><Icon /></span>
               <div>
-                <h2>{fmt(resourceKind)}</h2>
-                <p>{feat?.description || `Manage ${fmt(resourceKind).toLowerCase()} definitions.`}</p>
+                <h2>{resourceDisplayName(resourceKind)}</h2>
+                <p>{feat?.description || `Manage ${resourceDisplayName(resourceKind).toLowerCase()} definitions.`}</p>
                 <div style={{ display: "flex", gap: "4px", marginTop: "6px" }}>
                   {feat?.presets.slice(0, 2).map((p: any) => <span key={p.name} className="rv-pill gray" style={{ fontSize: "9px", padding: "1px 5px" }}>{p.name.split(" ")[0]}</span>)}
                 </div>

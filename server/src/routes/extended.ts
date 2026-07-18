@@ -216,7 +216,7 @@ router.post("/tickets/:id/links", async (req: AuthRequest, res) => {
   if (!(await requireTicketAccess(req, res, target)) || !target) return;
   if (String(source._id) === String(target._id)) return res.status(400).json({ message: "A ticket cannot link to itself" });
   if (source.issueLinks.some((link: any) => link.type === body.type && String(link.ticket) === String(target._id))) {
-    return res.status(409).json({ message: "This issue link already exists" });
+    return res.status(409).json({ message: "This ticket link already exists" });
   }
   source.issueLinks.push({ id: randomUUID(), ...body, createdAt: new Date(), createdBy: uid(req) });
   await source.save();
@@ -347,8 +347,51 @@ router.post("/tickets/:id/undelete", requireRole(["admin", "manager"]), async (r
 });
 router.post("/tickets/:id/clone", requireRole(["admin", "manager"]), async (req: AuthRequest, res) => { const source = await Ticket.findOne({ _id: req.params.id, organization: oid(req) }).lean(); if (!source) return res.status(404).json({ message: "Ticket not found" }); if (!await canAccessTicket(req, source)) return res.status(403).json({ message: "You do not have access to this project" }); const project = await Project.findOne({ _id: source.project, organization: oid(req) }); if (!project) return res.status(404).json({ message: "Project not found" }); const counter = await Counter.findOneAndUpdate({ organization: oid(req), scope: `ticket:${source.project}` }, { $inc: { value: 1 } }, { upsert: true, new: true, setDefaultsOnInsert: true }); const { _id, createdAt, updatedAt, ...copy } = source as typeof source & { createdAt?: Date; updatedAt?: Date }; const ticket = await Ticket.create({ ...copy, title: `${source.title} (copy)`, ticketId: `${project.key}-${counter!.value}`, history: [{ event: "Cloned", createdAt: new Date() }] }); return res.status(201).json({ ticket }); });
 
-router.route("/resources/:kind").get(async (req: AuthRequest, res) => { const kind = String(req.params.kind); if (!resourceKinds.includes(kind as never)) return res.status(404).json({ message: "Resource kind not found" }); const visibleProjectIds = await accessibleProjectIds(req); const requestedProject = req.query.project ? String(req.query.project) : ""; if (requestedProject && visibleProjectIds && !visibleProjectIds.some((id) => String(id) === requestedProject)) return res.json({ resources: [] }); const projectVisibility = visibleProjectIds ? { $or: [{ project: { $in: visibleProjectIds } }, { project: null }] } : {}; return res.json({ resources: await Resources.find({ organization: oid(req), kind, ...projectVisibility, ...(requestedProject ? { project: requestedProject } : {}) }).sort("order name") }); }).post(requireRole(["admin", "manager"]), async (req: AuthRequest, res) => { const kind = String(req.params.kind); if (!resourceKinds.includes(kind as never)) return res.status(404).json({ message: "Resource kind not found" }); const body = parseOr400(z.object({ name: z.string().min(1), project: z.string().optional(), key: z.string().optional(), description: z.string().default(""), status: z.string().default("active"), order: z.number().default(0), config: z.record(z.string(), z.unknown()).default({}) }), req.body, res); if (!body) return; if (body.project && !canAccessProject(req, await Project.findOne({ _id: body.project, organization: oid(req) }))) return res.status(403).json({ message: "You do not have access to this project" }); const resource = await Resources.create({ ...body, kind, organization: oid(req) }); return res.status(201).json({ resource }); });
-router.route("/resources/:kind/:id").get(async (req: AuthRequest, res) => { const resource = await Resources.findOne({ _id: String(req.params.id), organization: oid(req), kind: String(req.params.kind) }); if (resource && !await canAccessResource(req, resource)) return res.status(403).json({ message: "You do not have access to this resource" }); return resource ? res.json({ resource }) : res.status(404).json({ message: "Resource not found" }); }).patch(requireRole(["admin", "manager"]), async (req: AuthRequest, res) => { const body = parseOr400(z.object({ name: z.string().trim().min(1).max(160).optional(), key: z.string().trim().max(100).optional(), description: z.string().max(5000).optional(), status: z.string().trim().min(1).max(40).optional(), order: z.number().finite().optional(), config: z.record(z.string(), z.unknown()).optional() }), req.body, res); if (!body) return; const existing = await Resources.findOne({ _id: String(req.params.id), organization: oid(req), kind: String(req.params.kind) }); if (!existing) return res.status(404).json({ message: "Resource not found" }); if (!await canAccessResource(req, existing)) return res.status(403).json({ message: "You do not have access to this resource" }); const resource = await Resources.findOneAndUpdate({ _id: String(req.params.id), organization: oid(req), kind: String(req.params.kind) }, body, { new: true, runValidators: true }); return resource ? res.json({ resource }) : res.status(404).json({ message: "Resource not found" }); }).delete(requireRole(["admin", "manager"]), async (req: AuthRequest, res) => { const existing = await Resources.findOne({ _id: String(req.params.id), organization: oid(req), kind: String(req.params.kind) }); if (!existing) return res.status(404).json({ message: "Resource not found" }); if (!await canAccessResource(req, existing)) return res.status(403).json({ message: "You do not have access to this resource" }); const resource = await Resources.findOneAndDelete({ _id: String(req.params.id), organization: oid(req), kind: String(req.params.kind) }); return resource ? res.status(204).send() : res.status(404).json({ message: "Resource not found" }); });
+router.route("/resources/:kind")
+  .get(async (req: AuthRequest, res) => {
+    const kind = String(req.params.kind);
+    if (!resourceKinds.includes(kind as never)) return res.status(404).json({ message: "Resource kind not found" });
+    const visibleProjectIds = await accessibleProjectIds(req);
+    const requestedProject = req.query.project ? String(req.query.project) : "";
+    if (requestedProject && visibleProjectIds && !visibleProjectIds.some((id) => String(id) === requestedProject)) return res.json({ resources: [] });
+    const projectVisibility = visibleProjectIds ? { $or: [{ project: { $in: visibleProjectIds } }, { project: null }] } : {};
+    return res.json({ resources: await Resources.find({ organization: oid(req), kind, ...projectVisibility, ...(requestedProject ? { project: requestedProject } : {}) }).sort("order name") });
+  })
+  .post(requireRole(["admin", "manager"]), async (req: AuthRequest, res) => {
+    const kind = String(req.params.kind);
+    if (!resourceKinds.includes(kind as never)) return res.status(404).json({ message: "Resource kind not found" });
+    const body = parseOr400(z.object({ name: z.string().min(1), project: z.string().optional(), key: z.string().optional(), description: z.string().default(""), status: z.string().default("active"), order: z.number().default(0), config: z.record(z.string(), z.unknown()).default({}) }), req.body, res);
+    if (!body) return;
+    if (kind === "issue-type" && body.name.trim().toLowerCase() === "epic") return res.status(400).json({ message: "Epic is a ticket grouping and cannot be created as a ticket type" });
+    if (body.project && !canAccessProject(req, await Project.findOne({ _id: body.project, organization: oid(req) }))) return res.status(403).json({ message: "You do not have access to this project" });
+    const resource = await Resources.create({ ...body, kind, organization: oid(req) });
+    return res.status(201).json({ resource });
+  });
+
+router.route("/resources/:kind/:id")
+  .get(async (req: AuthRequest, res) => {
+    const resource = await Resources.findOne({ _id: String(req.params.id), organization: oid(req), kind: String(req.params.kind) });
+    if (resource && !await canAccessResource(req, resource)) return res.status(403).json({ message: "You do not have access to this resource" });
+    return resource ? res.json({ resource }) : res.status(404).json({ message: "Resource not found" });
+  })
+  .patch(requireRole(["admin", "manager"]), async (req: AuthRequest, res) => {
+    const body = parseOr400(z.object({ name: z.string().trim().min(1).max(160).optional(), key: z.string().trim().max(100).optional(), description: z.string().max(5000).optional(), status: z.string().trim().min(1).max(40).optional(), order: z.number().finite().optional(), config: z.record(z.string(), z.unknown()).optional() }), req.body, res);
+    if (!body) return;
+    const kind = String(req.params.kind);
+    if (kind === "issue-type" && body.name?.toLowerCase() === "epic") return res.status(400).json({ message: "Epic is a ticket grouping and cannot be used as a ticket type" });
+    const existing = await Resources.findOne({ _id: String(req.params.id), organization: oid(req), kind });
+    if (!existing) return res.status(404).json({ message: "Resource not found" });
+    if (!await canAccessResource(req, existing)) return res.status(403).json({ message: "You do not have access to this resource" });
+    const resource = await Resources.findOneAndUpdate({ _id: String(req.params.id), organization: oid(req), kind }, body, { new: true, runValidators: true });
+    return resource ? res.json({ resource }) : res.status(404).json({ message: "Resource not found" });
+  })
+  .delete(requireRole(["admin", "manager"]), async (req: AuthRequest, res) => {
+    const existing = await Resources.findOne({ _id: String(req.params.id), organization: oid(req), kind: String(req.params.kind) });
+    if (!existing) return res.status(404).json({ message: "Resource not found" });
+    if (!await canAccessResource(req, existing)) return res.status(403).json({ message: "You do not have access to this resource" });
+    const resource = await Resources.findOneAndDelete({ _id: String(req.params.id), organization: oid(req), kind: String(req.params.kind) });
+    return resource ? res.status(204).send() : res.status(404).json({ message: "Resource not found" });
+  });
 
 router.get("/notifications", async (req: AuthRequest, res) => res.json({ notifications: await Notification.find({ organization: oid(req), user: uid(req) }).sort("-createdAt").limit(100), unread: await Notification.countDocuments({ organization: oid(req), user: uid(req), readAt: { $exists: false } }) }));
 router.patch("/notifications/:id/read", async (req: AuthRequest, res) => { const notification = await Notification.findOneAndUpdate({ _id: req.params.id, organization: oid(req), user: uid(req) }, { readAt: new Date() }, { new: true }); return notification ? res.json({ notification }) : res.status(404).json({ message: "Notification not found" }); });
@@ -405,6 +448,18 @@ const importDate = (value: unknown, fallback: Date) => {
   return Number.isNaN(parsed.getTime()) ? fallback : parsed;
 };
 const importJson = (value: unknown, fallback: unknown) => JSON.stringify(value ?? fallback);
+const normalizeImportedTicketType = (value: unknown) => {
+  const ticketType = String(value || "Task").trim();
+  const builtInAliases: Record<string, string> = {
+    epic: "Task",
+    "feature / user story": "Story",
+    "engineering task": "Task",
+    "software defect / bug": "Bug",
+    "child sub-task": "Sub-task",
+    subtask: "Sub-task",
+  };
+  return builtInAliases[ticketType.toLowerCase()] || ticketType;
+};
 const workspaceImportSchema = z.object({
   schemaVersion: z.number().int().min(1).max(1).default(1),
   organization: z.record(z.string(), z.unknown()).optional(),
@@ -494,13 +549,14 @@ router.post("/import", requireRole(["admin"]), async (req: AuthRequest, res) => 
       if (!projectExists.rows[0]) { skipped.push({ kind: "ticket", name: ticketId, reason: "Referenced project does not exist" }); continue; }
       if (duplicate.rows[0]) { skipped.push({ kind: "ticket", name: ticketId, reason: "Ticket key already exists" }); continue; }
       const sprintId = source.sprint ? sprintIds.get(String(source.sprint)) || String(source.sprint) : null;
-      await client.query("INSERT INTO tickets (id, organization, ticket_id, title, description, acceptance_criteria, acceptance_criteria_done, status, priority, issue_type, custom_fields, story_points, assignee, reporter, project, sprint, epic, labels, due_date, blocked, dependencies, issue_links, comments, work_logs, history, status_transitions, watchers, attachments, sla_policy, sla_status, rank) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9, $10, $11::jsonb, $12, $13, $14, $15, $16, $17, $18::jsonb, $19, $20, $21::jsonb, $22::jsonb, $23::jsonb, $24::jsonb, $25::jsonb, $26::jsonb, $27::jsonb, $28::jsonb, $29::jsonb, $30, $31)", [randomUUID(), organizationId, ticketId, title, String(source.description || ""), importJson(source.acceptanceCriteria, []), importJson(source.acceptanceCriteriaDone, []), String(source.status || "Backlog"), String(source.priority || "medium"), String(source.issueType || "Task"), importJson(source.customFields, {}), Number(source.storyPoints || 0), source.assignee ? (userIds.get(String(source.assignee)) || null) : null, userIds.get(String(source.reporter)) || actorId, projectId, sprintId, String(source.epic || ""), importJson(source.labels, []), source.dueDate ? importDate(source.dueDate, new Date()) : null, Boolean(source.blocked), importJson(source.dependencies, []), importJson(source.issueLinks, []), importJson(source.comments, []), importJson(source.workLogs, []), importJson(source.history, []), importJson(source.statusTransitions, []), importJson(source.watchers, []), importJson(source.attachments, []), importJson(source.slaPolicy, { firstResponseHours: 8, resolutionHours: 72 }), String(source.slaStatus || "healthy"), Number(source.rank || 0)]);
+      await client.query("INSERT INTO tickets (id, organization, ticket_id, title, description, acceptance_criteria, acceptance_criteria_done, status, priority, issue_type, custom_fields, story_points, assignee, reporter, project, sprint, epic, labels, due_date, blocked, dependencies, issue_links, comments, work_logs, history, status_transitions, watchers, attachments, sla_policy, sla_status, rank) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9, $10, $11::jsonb, $12, $13, $14, $15, $16, $17, $18::jsonb, $19, $20, $21::jsonb, $22::jsonb, $23::jsonb, $24::jsonb, $25::jsonb, $26::jsonb, $27::jsonb, $28::jsonb, $29::jsonb, $30, $31)", [randomUUID(), organizationId, ticketId, title, String(source.description || ""), importJson(source.acceptanceCriteria, []), importJson(source.acceptanceCriteriaDone, []), String(source.status || "Backlog"), String(source.priority || "medium"), normalizeImportedTicketType(source.issueType), importJson(source.customFields, {}), Number(source.storyPoints || 0), source.assignee ? (userIds.get(String(source.assignee)) || null) : null, userIds.get(String(source.reporter)) || actorId, projectId, sprintId, String(source.epic || ""), importJson(source.labels, []), source.dueDate ? importDate(source.dueDate, new Date()) : null, Boolean(source.blocked), importJson(source.dependencies, []), importJson(source.issueLinks, []), importJson(source.comments, []), importJson(source.workLogs, []), importJson(source.history, []), importJson(source.statusTransitions, []), importJson(source.watchers, []), importJson(source.attachments, []), importJson(source.slaPolicy, { firstResponseHours: 8, resolutionHours: 72 }), String(source.slaStatus || "healthy"), Number(source.rank || 0)]);
       imported.tickets += 1;
     }
     for (const source of body.resources) {
       const kind = String(source.kind || "");
       const name = String(source.name || "").trim();
       if (!resourceKinds.includes(kind as never) || !name) { skipped.push({ kind: "resource", name: name || "unknown", reason: "Valid resource kind and name are required" }); continue; }
+      if (kind === "issue-type" && name.toLowerCase() === "epic") { skipped.push({ kind, name, reason: "Epic is a ticket grouping, not a ticket type" }); continue; }
       const project = source.project ? (projectIds.get(String(source.project)) || String(source.project)) : null;
       const duplicate = await client.query("SELECT id FROM workspace_resources WHERE organization = $1 AND kind = $2 AND name = $3 AND project IS NOT DISTINCT FROM $4", [organizationId, kind, name, project]);
       if (duplicate.rows[0]) { skipped.push({ kind, name, reason: "Resource already exists" }); continue; }
@@ -516,6 +572,6 @@ router.post("/import", requireRole(["admin"]), async (req: AuthRequest, res) => 
     throw error;
   } finally { client.release(); }
 });
-router.post("/import/resources", requireRole(["admin"]), async (req: AuthRequest, res) => { const body = parseOr400(z.object({ resources: z.array(z.object({ kind: z.enum(resourceKinds), name: z.string().min(1), project: z.string().optional(), key: z.string().optional(), description: z.string().default(""), status: z.string().default("active"), order: z.number().default(0), config: z.record(z.string(), z.unknown()).default({}) })).max(1000) }), req.body, res); if (!body) return; const result = await Resources.insertMany(body.resources.map((resource: object) => ({ ...resource, organization: oid(req) })), { ordered: false }); await audit(req, "resources.imported", "workspace-resource", undefined, { count: result.length }); return res.status(201).json({ imported: result.length }); });
+router.post("/import/resources", requireRole(["admin"]), async (req: AuthRequest, res) => { const body = parseOr400(z.object({ resources: z.array(z.object({ kind: z.enum(resourceKinds), name: z.string().min(1), project: z.string().optional(), key: z.string().optional(), description: z.string().default(""), status: z.string().default("active"), order: z.number().default(0), config: z.record(z.string(), z.unknown()).default({}) })).max(1000) }), req.body, res); if (!body) return; const allowedResources = body.resources.filter((resource) => resource.kind !== "issue-type" || resource.name.trim().toLowerCase() !== "epic"); const result = await Resources.insertMany(allowedResources.map((resource: object) => ({ ...resource, organization: oid(req) })), { ordered: false }); await audit(req, "resources.imported", "workspace-resource", undefined, { count: result.length }); return res.status(201).json({ imported: result.length, skipped: body.resources.length - allowedResources.length }); });
 
 export default router;

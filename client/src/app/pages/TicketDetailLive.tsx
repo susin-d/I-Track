@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import * as Icons from "lucide-react";
 import { useWorkspace } from "../workspace";
-import { api } from "../../api";
+import { api, apiResourceUrl } from "../../api";
 import { appConfirm, appForm, appPrompt } from "../components/AppDialog";
 import { Badge, CardTitle, Empty, LabelPicker, PageHead } from "../components/ui";
 import { fmt } from "../../utils/ui";
@@ -386,7 +386,7 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
           body: JSON.stringify({ type, ticket: targetId }),
         }),
       );
-      toast("Issue link added");
+      toast("Ticket link added");
     } catch (err) {
       toast(err instanceof Error ? err.message : "Failed to link ticket");
     }
@@ -588,7 +588,7 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
                         <b>
                           {tab === "attachments" ? (
                             <a
-                              href={item.dataUrl || item.url}
+                              href={item.dataUrl || apiResourceUrl(item.url)}
                               download={item.dataUrl ? item.name : undefined}
                               target={item.url ? "_blank" : undefined}
                               rel="noreferrer"
@@ -599,6 +599,9 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
                           ) : item.body || item.note || item.event}
                         </b>
                         <small style={{ marginLeft: "10px" }}>
+                          {tab === "comments" && item.author
+                            ? `${item.author} · `
+                            : ""}
                           {item.hours ? `${item.hours} hours · ` : ""}
                           {item.size ? `${Math.ceil(item.size / 1024)} KB · ` : ""}
                           {item.storage === "database" ? "Stored file · " : ""}
@@ -772,7 +775,7 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
           })()}
 
           <div className="ticket-links">
-            <span>Issue links</span>
+            <span>Ticket links</span>
             {(raw.issueLinks || []).map((link: any, index: number) => {
               const target = (dashboard?.tickets || []).find(
                 (ticket: any) => String(ticket._id) === String(link.ticket),
@@ -789,11 +792,11 @@ export function TicketDetailLive({ toast }: { toast: (s: string) => void }) {
                 </button>
               );
             })}
-            {!(raw.issueLinks || []).length && <small>No linked issues</small>}
+            {!(raw.issueLinks || []).length && <small>No linked tickets</small>}
             {isLeader && (
               <button className="btn wide" onClick={addIssueLink}>
                 <Icons.Link2 />
-                Link issue
+                Link ticket
               </button>
             )}
           </div>

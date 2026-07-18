@@ -248,7 +248,7 @@ export const ALL_RESOURCE_FEATURE_CONFIG: Record<ResourceKind, FeatureConfig> = 
   },
 
   "issue-type": {
-    description: "Define issue types, icons, colors, and issue hierarchy levels.",
+    description: "Define ticket types, icons, colors, and ticket hierarchy levels.",
     category: "attributes",
     icon: "TicketCheck",
     fields: [
@@ -259,10 +259,10 @@ export const ALL_RESOURCE_FEATURE_CONFIG: Record<ResourceKind, FeatureConfig> = 
         type: "select",
         options: [
           { label: "Bug (Red Circle)", value: "Bug" },
-          { label: "User Story (Green Bookmark)", value: "Story" },
+          { label: "Story (Green Bookmark)", value: "Story" },
           { label: "Task (Blue Checkbox)", value: "Task" },
-          { label: "Epic (Purple Lightning)", value: "Epic" },
-          { label: "Sub-task (Teal Branch)", value: "Subtask" },
+          { label: "Bug (Crimson Bug)", value: "Bug" },
+          { label: "Sub-task (Teal Branch)", value: "Sub-task" },
           { label: "Incident (Alert Triangle)", value: "Incident" },
           { label: "Improvement (Sparkles)", value: "Improvement" },
         ],
@@ -277,21 +277,20 @@ export const ALL_RESOURCE_FEATURE_CONFIG: Record<ResourceKind, FeatureConfig> = 
       {
         key: "hierarchy",
         label: "Hierarchy Level",
-        initial: "Standard Issue (Level 0)",
+        initial: "Standard Ticket (Level 0)",
         type: "select",
         options: [
-          { label: "Sub-task (Level -1)", value: "Subtask (Level -1)" },
-          { label: "Standard Issue (Level 0)", value: "Standard Issue (Level 0)" },
-          { label: "Epic / Portfolio (Level 1)", value: "Epic / Portfolio (Level 1)" },
+          { label: "Sub-task (Level -1)", value: "Sub-task (Level -1)" },
+          { label: "Standard Ticket (Level 0)", value: "Standard Ticket (Level 0)" },
         ],
       },
       { key: "defaultWorkflow", label: "Default Associated Workflow", initial: "Standard Software Workflow" },
     ],
     presets: [
-      { name: "Software Defect / Bug", description: "Problem preventing functions or creating unexpected behavior.", key: "IT-BUG", config: { icon: "Bug", color: "Crimson", hierarchy: "Standard Issue (Level 0)", defaultWorkflow: "Standard Software Workflow" } },
-      { name: "Feature / User Story", description: "Requirement expressed from user perspective.", key: "IT-STORY", config: { icon: "Story", color: "Emerald", hierarchy: "Standard Issue (Level 0)", defaultWorkflow: "Standard Software Workflow" } },
-      { name: "Engineering Task", description: "Technical work item or refactoring task.", key: "IT-TASK", config: { icon: "Task", color: "Blue", hierarchy: "Standard Issue (Level 0)", defaultWorkflow: "Simple 3-Stage Kanban" } },
-      { name: "Child Sub-Task", description: "Sub-division of a parent issue or story.", key: "IT-SUB", config: { icon: "Subtask", color: "Teal", hierarchy: "Sub-task (Level -1)", defaultWorkflow: "Simple 3-Stage Kanban" } },
+      { name: "Bug", description: "A problem that prevents expected behavior.", key: "IT-BUG", config: { icon: "Bug", color: "Crimson", hierarchy: "Standard Ticket (Level 0)", defaultWorkflow: "Standard Software Workflow" } },
+      { name: "Story", description: "A user-facing piece of work expressed from the user's perspective.", key: "IT-STORY", config: { icon: "Story", color: "Emerald", hierarchy: "Standard Ticket (Level 0)", defaultWorkflow: "Standard Software Workflow" } },
+      { name: "Task", description: "A technical or operational ticket.", key: "IT-TASK", config: { icon: "Task", color: "Blue", hierarchy: "Standard Ticket (Level 0)", defaultWorkflow: "Simple 3-Stage Kanban" } },
+      { name: "Sub-task", description: "A smaller piece of work belonging to a parent ticket.", key: "IT-SUB", config: { icon: "Subtask", color: "Teal", hierarchy: "Sub-task (Level -1)", defaultWorkflow: "Simple 3-Stage Kanban" } },
     ],
   },
 
@@ -339,7 +338,7 @@ export const ALL_RESOURCE_FEATURE_CONFIG: Record<ResourceKind, FeatureConfig> = 
     presets: [
       { name: "P0 - Production Blocker", description: "Entire platform or major feature is down for all customers.", key: "P-P0", config: { level: "P0 - Blocker", color: "Crimson", icon: "DoubleUp", slaHours: "1" } },
       { name: "P1 - Critical Severity", description: "Key function impaired with no workaround available.", key: "P-P1", config: { level: "P1 - Critical", color: "Orange", icon: "ChevronUp", slaHours: "4" } },
-      { name: "P2 - High Priority", description: "Important issue affecting productivity or core path.", key: "P-P2", config: { level: "P2 - High", color: "Amber", icon: "ChevronUp", slaHours: "12" } },
+      { name: "P2 - High Priority", description: "Important ticket affecting productivity or a core path.", key: "P-P2", config: { level: "P2 - High", color: "Amber", icon: "ChevronUp", slaHours: "12" } },
       { name: "P3 - Medium Standard", description: "Normal priority ticket handled during sprint iteration.", key: "P-P3", config: { level: "P3 - Medium", color: "Blue", icon: "Equals", slaHours: "24" } },
       { name: "P4 - Low / Backlog", description: "Minor defect or non-urgent improvement suggestion.", key: "P-P4", config: { level: "P4 - Low", color: "Slate", icon: "ChevronDown", slaHours: "72" } },
     ],
@@ -409,14 +408,15 @@ export const ALL_RESOURCE_FEATURE_CONFIG: Record<ResourceKind, FeatureConfig> = 
     fields: [
       {
         key: "issueType",
-        label: "Target Issue Type",
+        label: "Target Ticket Type",
         initial: "Bug",
         type: "select",
         options: [
           { label: "Bug Report", value: "Bug" },
-          { label: "User Story", value: "Story" },
+          { label: "Story", value: "Story" },
           { label: "Task", value: "Task" },
-          { label: "Epic", value: "Epic" },
+          { label: "Bug", value: "Bug" },
+          { label: "Sub-task", value: "Sub-task" },
         ],
       },
       { key: "summaryTemplate", label: "Prefilled Summary Pattern", initial: "[Bug] <Module>: <Brief description>" },
@@ -476,14 +476,14 @@ export const ALL_RESOURCE_FEATURE_CONFIG: Record<ResourceKind, FeatureConfig> = 
         type: "select",
         options: [
           { label: "By Priority Level", value: "Priority" },
-          { label: "By Issue Type", value: "Issue Type" },
+          { label: "By Ticket Type", value: "Ticket Type" },
           { label: "By Assignee Avatar", value: "Assignee" },
         ],
       },
     ],
     presets: [
       { name: "Engineering Core Kanban", description: "Standard 4-column flow with priority swimlanes.", key: "BRD-KANBAN", config: { boardType: "Kanban", columns: "To Do, In Progress, Code Review, Done", swimlane: "Priority", cardColors: "Priority" } },
-      { name: "Sprint Delivery Scrum Board", description: "Sprint backlog to QA release tracking board.", key: "BRD-SCRUM", config: { boardType: "Scrum", columns: "Backlog, In Sprint, In Progress, QA Testing, Done", swimlane: "Epic", cardColors: "Issue Type" } },
+      { name: "Sprint Delivery Scrum Board", description: "Sprint backlog to QA release tracking board.", key: "BRD-SCRUM", config: { boardType: "Scrum", columns: "Backlog, In Sprint, In Progress, QA Testing, Done", swimlane: "Epic", cardColors: "Ticket Type" } },
       { name: "Triage & Incident Board", description: "Fast reaction board for incoming bugs & security alerts.", key: "BRD-TRIAGE", config: { boardType: "Kanban", columns: "New Triage, Under Investigation, Patching, Resolved", swimlane: "Priority", cardColors: "Priority" } },
     ],
   },
@@ -801,7 +801,7 @@ export function ResourceVisualPreview({ kind, item }: { kind: ResourceKind; item
             <Icons.TicketCheck size={20} />
           </div>
           <div>
-            <h4 style={{ margin: 0, fontSize: "14px" }}>{item.name || "Issue Type"}</h4>
+            <h4 style={{ margin: 0, fontSize: "14px" }}>{item.name || "Ticket Type"}</h4>
             <span style={{ fontSize: "11px", color: "var(--muted)" }}>{config.hierarchy || "Level 0"}</span>
           </div>
         </div>
@@ -877,7 +877,7 @@ export function ResourceVisualPreview({ kind, item }: { kind: ResourceKind; item
       return (
         <div className="rv-preview-card">
           <div className="rv-badge-header" style={{ marginBottom: "6px" }}>
-            <span className="rv-pill blue">{config.issueType || "Issue"} Template</span>
+            <span className="rv-pill blue">{config.issueType || "Ticket"} Template</span>
             <span className="rv-pill gray">{config.defaultPriority || "Priority"}</span>
           </div>
           <h4 style={{ margin: "4px 0", fontSize: "13px" }}>{item.name || "Template Name"}</h4>

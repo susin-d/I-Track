@@ -75,7 +75,7 @@ export function LandingPage() {
               </div>
               <div className="mini-main">
                 <div className="mini-top"><span>SPRINT OVERVIEW</span><div><Icons.Search/><b>AK</b></div></div>
-                <div className="mini-heading"><div><small>Current sprint</small><h3>Momentum is building.</h3></div><button disabled>+ Create issue</button></div>
+                <div className="mini-heading"><div><small>Current sprint</small><h3>Momentum is building.</h3></div><button disabled>+ Create ticket</button></div>
                 <div className="mini-stats">
                   <article><small>SPRINT HEALTH</small><strong>{marketing?.preview?.sprintHealth ?? "—"}<span>{marketing ? "%" : ""}</span></strong><i>On track</i></article>
                   <article><small>COMPLETED</small><strong>{marketing?.preview?.completed ?? "—"}<span>{marketing ? ` / ${marketing.preview.planned}` : ""}</span></strong><div className="mini-bar"><i></i></div></article>

@@ -617,13 +617,16 @@
 }
 
 /* Header notifications panel */
-.header-notifications {
+.card.header-notifications {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
   width: min(360px, calc(100vw - 24px));
+  max-height: calc(100vh - 88px);
   overflow: hidden;
   padding: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   z-index: 50;
   box-shadow: 0 18px 48px #10182826;
 }
@@ -643,12 +646,14 @@
   margin: 0;
 }
 
-.notification-list {
-  max-height: 320px;
+.header-notification-list {
+  min-height: 0;
+  max-height: min(320px, calc(100vh - 212px));
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
-.notification-item {
+.header-notification-item {
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -658,31 +663,20 @@
   cursor: pointer;
 }
 
-.notification-item:hover {
+.header-notification-item:hover {
   background: var(--surface-2);
 }
 
-.notification-item.unread {
+.header-notification-item.unread {
   background: #a47bef09;
 }
 
-.notification-item > div {
+.header-notification-item > div {
   flex: 1;
   min-width: 0;
 }
 
-.notification-item > a,
-.notification-item > .notification-content {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-  color: inherit;
-  text-decoration: none;
-}
-
-.notification-item b {
+.header-notification-item b {
   display: block;
   font-size: 12px;
   overflow: hidden;
@@ -690,7 +684,7 @@
   white-space: nowrap;
 }
 
-.notification-item p {
+.header-notification-item p {
   margin: 3px 0;
   color: var(--muted);
   font-size: 11px;
@@ -699,13 +693,13 @@
   white-space: nowrap;
 }
 
-.notification-item small,
-.notification-item time {
+.header-notification-item small,
+.header-notification-item time {
   color: var(--muted);
   font-size: 9px;
 }
 
-.notif-icon {
+.header-notif-icon {
   width: 28px;
   height: 28px;
   border-radius: 8px;
@@ -716,20 +710,26 @@
   color: var(--muted);
 }
 
-.notif-icon.risk {
+.header-notif-icon.risk {
   background: #e95a5a15;
   color: var(--red);
 }
 
-.notif-icon.mention {
+.header-notif-icon.mention {
   background: #a47bef15;
   color: var(--purple-strong);
 }
 
-.notif-icon.ticket,
-.notif-icon.comment {
+.header-notif-icon.ticket,
+.header-notif-icon.comment {
   background: #4f86f715;
   color: var(--blue);
+}
+
+.header-notifications-footer {
+  padding: 12px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
 }
 
 .notifications-empty {

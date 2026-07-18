@@ -300,12 +300,12 @@ export function Shell({
                     <h2 id="header-notifications-title">Notifications</h2>
                     <button className="btn text-btn" onClick={markAllNotificationsRead}>Mark all read</button>
                   </header>
-                  <div className="notification-list">
+                  <div className="header-notification-list">
                     {recentNotifications.map((n: any) => {
                       const Icon = n.type === "risk" ? Icons.Activity : n.type === "mention" ? Icons.AtSign : Icons.Ticket;
                       return (
-                        <a className={cx("notification-item", !n.readAt && "unread")} key={n._id} href={n.href || "/notifications"} onClick={() => { void markNotificationRead(n); setNotificationMenu(false); }}>
-                          <span className={cx("notif-icon", n.type)}><Icon size={14} /></span>
+                        <a className={cx("header-notification-item", !n.readAt && "unread")} key={n._id} href={n.href || "/notifications"} onClick={() => { void markNotificationRead(n); setNotificationMenu(false); }}>
+                          <span className={cx("header-notif-icon", n.type)}><Icon size={14} /></span>
                           <div>
                             <b>{n.title}</b>
                             <p>{n.body}</p>
@@ -316,7 +316,9 @@ export function Shell({
                     })}
                     {!recentNotifications.length && <div className="notifications-empty"><Icons.CheckCircle size={28} /><b>All caught up</b><span>You have no notifications.</span></div>}
                   </div>
-                  <button className="btn primary wide" onClick={() => { setNotificationMenu(false); navigate("/notifications"); }}>View all notifications <Icons.ArrowRight /></button>
+                  <footer className="header-notifications-footer">
+                    <button className="btn primary wide" onClick={() => { setNotificationMenu(false); navigate("/notifications"); }}>View all notifications <Icons.ArrowRight /></button>
+                  </footer>
                 </section>
               )}
             </div>

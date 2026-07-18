@@ -37,6 +37,14 @@ export function googleLoginUrl() {
   return `${API_BASE}/auth/google`;
 }
 
+export function apiResourceUrl(url: string) {
+  if (!url || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(url)) return url;
+
+  const normalized = `/${url.replace(/^\/+/, "")}`;
+  const apiPath = normalized.replace(/^\/api\/v1(?=\/|$)/, "");
+  return `${API_BASE}${apiPath}`;
+}
+
 function isPublicAuthPath(path: string) {
   const normalized = path.split("?", 1)[0];
   return /^\/auth\/(login|register|verify-otp|resend-otp|refresh|logout|forgot-password|reset-password|accept-invite)$/.test(normalized);
