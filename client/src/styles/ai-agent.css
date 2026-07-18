@@ -681,6 +681,26 @@ body.ai-panel-resizing {
   gap: 4px;
   position: relative;
 }
+.ai-new-chat-btn {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ai-new-chat-btn:hover {
+  border-color: color-mix(in srgb, var(--purple) 45%, var(--border));
+  color: var(--purple-strong);
+  background: color-mix(in srgb, var(--purple) 10%, var(--surface));
+}
 .ai-actions-menu {
   position: absolute;
   right: 0;

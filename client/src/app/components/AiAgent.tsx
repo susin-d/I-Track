@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
-import { AlertCircle, Bot, Boxes, Building2, ChartNoAxesCombined, Check, CircleSlash2, FilePlus2, ListChecks, PanelsTopLeft, SendHorizonal, ShieldAlert, Sparkles, Ticket, Timer, Trash2, User, UserPlus, UsersRound, WandSparkles, X } from "lucide-react";
+import { AlertCircle, Bot, Boxes, Building2, ChartNoAxesCombined, Check, CircleSlash2, FilePlus2, ListChecks, PanelsTopLeft, Plus, SendHorizonal, ShieldAlert, Sparkles, Ticket, Timer, Trash2, User, UserPlus, UsersRound, WandSparkles, X } from "lucide-react";
 import { api, apiFetch } from "../../api";
 import { useWorkspace } from "../workspace";
 import { CustomMarkdown } from "./Markdown";
@@ -440,7 +440,10 @@ export function AiAgentPanel({ open, onClose }: { open: boolean; onClose: () => 
             <button className="icon-btn" onClick={() => setActionsOpen((value) => !value)} title="AI actions" aria-haspopup="menu" aria-expanded={actionsOpen}>
               <WandSparkles size={16} />
             </button>
-            <button className="icon-btn" onClick={clearChat} title="Clear chat"><Trash2 size={16} /></button>
+            <button className="ai-new-chat-btn" onClick={clearChat} title="Start a new chat" aria-label="New chat">
+              <Plus size={16} />
+              <span>New chat</span>
+            </button>
             <button className="icon-btn" onClick={onClose} title="Close (Ctrl+J)"><X size={18} /></button>
             {actionsOpen && (
               <div className="ai-actions-menu" role="menu">
