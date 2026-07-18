@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ApiError, api, clearSession } from "../api";
+import { API_DATA_MUTATED_EVENT, ApiError, api, clearSession } from "../api";
 import { resourceKinds } from "../constants/resources";
 import { ErrorState, LoadingState } from "./components/ui";
 import { queryFn, queryKeys } from "./query";
@@ -142,6 +142,17 @@ export function ApiGate({ children, toast }: { children: React.ReactNode; toast:
       window.location.replace("/login");
     }
   }, [session.error]);
+
+  useEffect(() => {
+    const refreshActiveData = () => {
+      void queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] !== "session",
+        refetchType: "active",
+      });
+    };
+    window.addEventListener(API_DATA_MUTATED_EVENT, refreshActiveData);
+    return () => window.removeEventListener(API_DATA_MUTATED_EVENT, refreshActiveData);
+  }, [queryClient]);
 
   const value = useMemo<WorkspaceValue>(() => {
     const dashboard = dashboardQuery.data && typeof dashboardQuery.data === "object" ? dashboardQuery.data : emptyDashboard;

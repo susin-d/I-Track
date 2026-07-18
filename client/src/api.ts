@@ -1,4 +1,5 @@
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(/\/+$/, "");
+export const API_DATA_MUTATED_EVENT = "itrack:data-mutated";
 
 let refreshPromise: Promise<boolean> | null = null;
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -113,7 +114,12 @@ export async function api<T>(path: string, options: ApiRequestOptions = {}): Pro
       body,
     );
   }
-  return response.status === 204 ? (undefined as T) : response.json();
+  const result = response.status === 204 ? (undefined as T) : await response.json();
+  const method = String(options.method || "GET").toUpperCase();
+  if (typeof window !== "undefined" && !["GET", "HEAD", "OPTIONS"].includes(method)) {
+    window.dispatchEvent(new CustomEvent(API_DATA_MUTATED_EVENT, { detail: { path, method } }));
+  }
+  return result;
 }
 
 export async function login(email: string, password: string) {
