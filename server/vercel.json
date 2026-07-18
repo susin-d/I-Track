@@ -6,7 +6,11 @@
       "use": "@vercel/node"
     }
   ],
-  "includeFiles": ["templates/mail/**"],
+  "functions": {
+    "src/index.ts": {
+      "includeFiles": "templates/mail/**"
+    }
+  },
   "routes": [
     {
       "src": "/(.*)",
