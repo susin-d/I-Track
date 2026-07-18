@@ -104,26 +104,31 @@ export function RiskPage() {
     if (!s) return;
     setLoading(true);
     try {
-      const plannedPoints = s.plannedPoints || 0;
-      const capacity = s.capacity || 0;
+      const toFiniteNumber = (value: unknown) => {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : 0;
+      };
+      const plannedPoints = toFiniteNumber(s.plannedPoints);
+      const capacity = toFiniteNumber(s.capacity);
       const blockedTickets = sprintTickets.filter((t) => t.blocked).length;
       const totalTickets = sprintTickets.length;
 
       const workload = sprintTickets.reduce(
-        (sum: number, t: any) => sum + (t.points || 0),
+        (sum: number, t: any) => sum + toFiniteNumber(t.points),
         0,
       );
 
       const assigneePoints: Record<string, number> = {};
       sprintTickets.forEach((t: any) => {
-        assigneePoints[t.assignee] =
-          (assigneePoints[t.assignee] || 0) + (t.points || 0);
+        const assignee = t.assignee || "Unassigned";
+        assigneePoints[assignee] =
+          (assigneePoints[assignee] || 0) + toFiniteNumber(t.points);
       });
       const focusLoad = Math.max(0, ...Object.values(assigneePoints));
 
       const uniqueLabels = new Set<string>();
       sprintTickets.forEach((t: any) =>
-        t.labels.forEach((l: string) => uniqueLabels.add(l)),
+        (Array.isArray(t.labels) ? t.labels : []).forEach((l: string) => uniqueLabels.add(l)),
       );
       const requiredSkills = uniqueLabels.size;
 
@@ -133,7 +138,8 @@ export function RiskPage() {
       );
       const coveredSkills = allSkills.size;
 
-      const velocityHistory = s.velocityHistory || [];
+      const velocityHistory = (Array.isArray(s.velocityHistory) ? s.velocityHistory : [])
+        .map(toFiniteNumber);
 
       const result = await api<any>("/analysis/sprint-risk", {
         method: "POST",

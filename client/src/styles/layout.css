@@ -228,13 +228,63 @@
 
 .group-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 18px;
+}
+
+.groups-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.groups-overview > div {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.groups-overview > div > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+.groups-overview strong {
+  font-size: 20px;
+}
+
+.groups-overview small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.groups-overview-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+}
+
+.groups-overview-icon svg { width: 17px; }
+.groups-overview-icon.purple { color: var(--purple); background: #a47bef18; }
+.groups-overview-icon.blue { color: #4b74d9; background: #4b74d914; }
+.groups-overview-icon.green { color: #318b69; background: #318b6914; }
+.groups-overview-icon.orange { color: #c97828; background: #c9782814; }
+
+@media (max-width: 900px) {
+  .groups-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .group-card {
   display: grid;
-  gap: 18px;
+  gap: 20px;
+  padding: 24px;
 }
 
 .group-card > header {
@@ -242,6 +292,9 @@
   gap: 12px;
   align-items: center;
 }
+
+.group-card > header > .icon-btn { margin-left: auto; }
+.group-heading { min-width: 0; }
 
 .group-card h2,
 .group-card p {
@@ -255,8 +308,8 @@
 }
 
 .group-icon {
-  width: 42px;
-  height: 42px;
+  width: 46px;
+  height: 46px;
   display: grid;
   place-items: center;
   border-radius: 10px;
@@ -268,38 +321,98 @@
   width: 20px;
 }
 
-.group-section {
-  display: grid;
+.group-stats {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
-.group-section > span {
+.group-stats > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 9px;
+  border-radius: 7px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.group-stats strong { color: var(--ink); }
+.group-stats svg { width: 12px; }
+
+.group-section {
+  display: grid;
+  gap: 10px;
+}
+
+.group-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.group-section-head > span {
   color: var(--muted);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: .09em;
 }
 
-.group-chips {
-  display: flex;
-  flex-wrap: wrap;
+.group-section-head small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.group-member-list,
+.group-access-list {
+  display: grid;
   gap: 7px;
 }
 
-.group-chips > span:not(.badge) {
-  display: inline-flex;
+.group-member-list > div,
+.group-access-list > div {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 8px 5px 5px;
+  gap: 9px;
+  min-height: 46px;
+  padding: 7px 9px;
   border: 1px solid var(--border);
-  border-radius: 20px;
-  font-size: 11px;
+  border-radius: 10px;
+  background: var(--paper);
 }
 
-.group-chips .avatar {
-  width: 22px;
-  height: 22px;
+.group-member-list > div > span:nth-child(2),
+.group-access-list > div > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  flex: 1;
 }
+
+.group-member-list b,
+.group-access-list b { font-size: 11px; }
+.group-member-list small,
+.group-access-list small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-member-list > button {
+  justify-self: start;
+  border: 0;
+  background: none;
+  color: var(--purple);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.group-empty { border-style: dashed !important; color: var(--muted); }
+.group-empty > svg { width: 18px; }
+.group-empty b { color: var(--ink); }
 
 .group-card > footer {
   display: flex;
@@ -309,9 +422,19 @@
   border-top: 1px solid var(--border);
 }
 
+.group-card > footer .btn svg { width: 14px; }
+
 .group-card > footer .icon-btn {
   margin-left: auto;
   color: var(--danger);
+}
+
+@media (max-width: 560px) {
+  .group-grid { grid-template-columns: minmax(0, 1fr); }
+  .groups-overview { grid-template-columns: minmax(0, 1fr); }
+  .group-card { padding: 18px; }
+  .group-card > footer { flex-wrap: wrap; }
+  .group-card > footer .btn { flex: 1 1 100%; }
 }
 
 .workspace-overview-list {

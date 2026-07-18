@@ -119,18 +119,79 @@ export function GroupsLive({ toast }: { toast: (s: string) => void }) {
     }
   };
 
+  const edit = async (group: any) => {
+    const values = await appForm({
+      title: "Edit group details",
+      fields: [
+        { name: "name", label: "Group name", defaultValue: group.name, required: true },
+        { name: "description", label: "Description", type: "textarea", defaultValue: group.description || "", placeholder: "What is this group for?" },
+      ],
+      confirmLabel: "Save changes",
+    });
+    const name = values?.name?.trim();
+    if (!name || !companyId) return;
+    try {
+      await api(`/companies/${companyId}/groups/${group._id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name, description: values?.description?.trim() || "" }),
+      });
+      await load();
+      toast("Group details updated");
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Unable to update group");
+    }
+  };
+
+  const totalMembers = new Set(
+    groups.flatMap((group) => (group.members || []).map((member: any) => String(member._id))),
+  ).size;
+  const totalGrants = groups.reduce((sum, group) => sum + (group.workspaceAccess?.length || 0), 0);
+
   return (
     <>
       <PageHead title="Organization groups" desc="Group people once, then grant access across multiple workspaces.">
         <button className="btn primary" onClick={create}><Icons.Plus />New group</button>
       </PageHead>
+      <section className="groups-overview" aria-label="Group overview">
+        <div><span className="groups-overview-icon purple"><Icons.UsersRound /></span><span><strong>{groups.length}</strong><small>Total groups</small></span></div>
+        <div><span className="groups-overview-icon blue"><Icons.UserCheck /></span><span><strong>{totalMembers}</strong><small>Assigned people</small></span></div>
+        <div><span className="groups-overview-icon green"><Icons.Building2 /></span><span><strong>{totalGrants}</strong><small>Workspace grants</small></span></div>
+        <div><span className="groups-overview-icon orange"><Icons.Users /></span><span><strong>{directory.length}</strong><small>Directory members</small></span></div>
+      </section>
       <div className="group-grid">
         {groups.length ? groups.map((group) => (
           <article className="card group-card" key={group._id}>
-            <header><span className="group-icon"><Icons.UsersRound /></span><div><h2>{group.name}</h2><p>{group.description || "Organization access group"}</p></div></header>
-            <div className="group-section"><span>MEMBERS</span><div className="group-chips">{(group.members || []).map((member: any) => <span key={member._id}><Avatar name={member.name} color={member.avatarColor} />{member.name}</span>)}{!group.members?.length && <small>No members</small>}</div></div>
-            <div className="group-section"><span>WORKSPACE ACCESS</span><div className="group-chips">{(group.workspaceAccess || []).map((grant: any) => <Badge key={grant._id} tone="purple">{workspaces.find((workspace: any) => String(workspace._id) === String(grant.workspace))?.name || "Workspace"} · {fmt(grant.role)}</Badge>)}{!group.workspaceAccess?.length && <small>No workspace grants</small>}</div></div>
-            <footer><button className="btn" onClick={() => setMembers(group)}>Manage members</button><button className="btn" onClick={() => setWorkspaceAccess(group)}>Workspace access</button><button className="icon-btn" onClick={() => remove(group)} aria-label={`Delete ${group.name}`}><Icons.Trash2 /></button></footer>
+            <header>
+              <span className="group-icon"><Icons.UsersRound /></span>
+              <div className="group-heading"><h2>{group.name}</h2><p>{group.description || "Organization access group"}</p></div>
+              <button className="icon-btn" onClick={() => edit(group)} aria-label={`Edit ${group.name}`} title="Edit group details"><Icons.Pencil /></button>
+            </header>
+            <div className="group-stats">
+              <span><strong>{group.members?.length || 0}</strong> members</span>
+              <span><strong>{group.workspaceAccess?.length || 0}</strong> workspaces</span>
+              {group.createdAt && <span><Icons.CalendarDays /> Created {new Date(group.createdAt).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</span>}
+            </div>
+            <div className="group-section">
+              <div className="group-section-head"><span>MEMBERS</span><small>{group.members?.length || 0} assigned</small></div>
+              <div className="group-member-list">
+                {(group.members || []).slice(0, 4).map((member: any) => (
+                  <div key={member._id}><Avatar name={member.name} color={member.avatarColor} /><span><b>{member.name}</b><small>{member.email}</small></span></div>
+                ))}
+                {(group.members?.length || 0) > 4 && <button onClick={() => setMembers(group)}>+{group.members.length - 4} more members</button>}
+                {!group.members?.length && <div className="group-empty"><Icons.UserPlus /><span><b>No members assigned</b><small>Add people from the organization directory.</small></span></div>}
+              </div>
+            </div>
+            <div className="group-section">
+              <div className="group-section-head"><span>WORKSPACE ACCESS</span><small>{group.workspaceAccess?.length || 0} grants</small></div>
+              <div className="group-access-list">
+                {(group.workspaceAccess || []).map((grant: any) => {
+                  const workspace = workspaces.find((item: any) => String(item._id) === String(grant.workspace));
+                  return <div key={grant._id || `${grant.workspace}-${grant.role}`}><span className="avatar square">{(workspace?.name || "W").slice(0, 2).toUpperCase()}</span><span><b>{workspace?.name || "Workspace"}</b><small>Inherited access for every group member</small></span><Badge tone="purple">{fmt(grant.role)}</Badge></div>;
+                })}
+                {!group.workspaceAccess?.length && <div className="group-empty"><Icons.Building2 /><span><b>No workspace access</b><small>Grant a role in one or more workspaces.</small></span></div>}
+              </div>
+            </div>
+            <footer><button className="btn" onClick={() => setMembers(group)}><Icons.UserPlus />Manage members</button><button className="btn" onClick={() => setWorkspaceAccess(group)}><Icons.KeyRound />Workspace access</button><button className="icon-btn" onClick={() => remove(group)} aria-label={`Delete ${group.name}`} title="Delete group"><Icons.Trash2 /></button></footer>
           </article>
         )) : <Empty title="No groups yet" body="Create groups such as Engineering, Product, Design, or Finance." />}
       </div>
