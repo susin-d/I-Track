@@ -116,6 +116,17 @@ export function ResourcesLive({ toast }: { toast: (s: string) => void }) {
         })
       : filtered;
 
+    const epicDates = kind === "epic"
+      ? rows.flatMap((item: any) => [item.config?.startDate, item.config?.endDate])
+          .filter(Boolean)
+          .map((value: string) => new Date(`${value}T00:00:00`).getTime())
+          .filter(Number.isFinite)
+      : [];
+    const epicRangeStart = epicDates.length ? Math.min(...epicDates) : 0;
+    const epicRangeEnd = epicDates.length ? Math.max(...epicDates) : 0;
+    const epicRangeDays = Math.max(1, (epicRangeEnd - epicRangeStart) / 86_400_000);
+    const formatRoadmapDate = (value: number) => new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+
     const openCreateModal = () => { setEditingItem(null); setVisualModalKind(kind); };
     const openEditModal = (item: any) => { setEditingItem(item); setVisualModalKind(kind); };
 
@@ -197,9 +208,72 @@ export function ResourcesLive({ toast }: { toast: (s: string) => void }) {
         </PageHead>
         <FilterBar />
 
-        {(kind === "epic" || kind === "release") && rows.length > 0 && (
+        {kind === "epic" && viewMode === "grid" && rows.length > 0 && (
+          <section className="card epic-roadmap">
+            <div className="epic-roadmap-head">
+              <CardTitle title="Epic roadmap timeline" sub="Delivery windows, ownership, and progress across epics." />
+              <div className="epic-roadmap-summary">
+                <span><b>{rows.length}</b> epics</span>
+                <span><b>{rows.filter((item: any) => Number(item.config?.progress || 0) >= 100).length}</b> complete</span>
+                <span><b>{rows.filter((item: any) => !item.config?.startDate || !item.config?.endDate).length}</b> unscheduled</span>
+              </div>
+            </div>
+
+            {epicDates.length > 0 && (
+              <div className="epic-roadmap-scale" aria-hidden="true">
+                <span>{formatRoadmapDate(epicRangeStart)}</span>
+                <span>{formatRoadmapDate(epicRangeStart + (epicRangeEnd - epicRangeStart) / 2)}</span>
+                <span>{formatRoadmapDate(epicRangeEnd)}</span>
+              </div>
+            )}
+
+            <div className="epic-roadmap-rows">
+              {rows.map((item: any) => {
+                const start = item.config?.startDate;
+                const end = item.config?.endDate;
+                const startTime = start ? new Date(`${start}T00:00:00`).getTime() : NaN;
+                const endTime = end ? new Date(`${end}T00:00:00`).getTime() : NaN;
+                const isScheduled = Number.isFinite(startTime) && Number.isFinite(endTime);
+                const progress = Math.max(0, Math.min(100, Number(item.config?.progress || 0)));
+                const left = isScheduled ? Math.max(0, ((startTime - epicRangeStart) / 86_400_000 / epicRangeDays) * 100) : 0;
+                const width = isScheduled ? Math.max(3, Math.min(100 - left, ((endTime - startTime) / 86_400_000 / epicRangeDays) * 100)) : 100;
+                return (
+                  <article className="epic-roadmap-row" key={item._id}>
+                    <div className="epic-roadmap-details">
+                      <div className="epic-roadmap-keyline">
+                        <Badge tone="purple">{item.key || "EPIC"}</Badge>
+                        <span><Icons.UserRound />{item.config?.owner || "Unassigned"}</span>
+                      </div>
+                      <b>{item.name}</b>
+                      <p>{item.description || "No description provided"}</p>
+                      <div className="epic-roadmap-dates"><Icons.CalendarDays />{start || "Start not set"} <Icons.ArrowRight /> {end || "Target not set"}</div>
+                    </div>
+                    <div className={`epic-roadmap-track ${isScheduled ? "" : "unscheduled"}`}>
+                      {isScheduled ? (
+                        <div className="epic-roadmap-bar" style={{ left: `${left}%`, width: `${width}%` }}>
+                          <span style={{ width: `${progress}%` }} />
+                          <strong>{progress}%</strong>
+                        </div>
+                      ) : (
+                        <div className="epic-roadmap-placeholder"><Icons.CalendarPlus /> Add dates to schedule this epic</div>
+                      )}
+                    </div>
+                    {isLeader && (
+                      <div className="epic-roadmap-actions">
+                        <button className="btn text-btn sm" onClick={() => openEditModal(item)}><Icons.Pencil />Edit</button>
+                        <button className="btn text-btn sm danger" onClick={() => remove(item)}><Icons.Trash2 />Delete</button>
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {kind === "release" && rows.length > 0 && (
           <section className="card resource-plan">
-            <CardTitle title={kind === "epic" ? "Epic roadmap timeline" : "Release plan"} sub={kind === "epic" ? "Delivery windows and progress across epics." : "Version targets and readiness at a glance."} />
+            <CardTitle title="Release plan" sub="Version targets and readiness at a glance." />
             <div className="resource-plan-grid">
               {rows.map((item: any) => {
                 const start = item.config?.startDate;
@@ -207,7 +281,7 @@ export function ResourcesLive({ toast }: { toast: (s: string) => void }) {
                 const progress = Math.max(0, Math.min(100, Number(item.config?.progress || 0)));
                 return (
                   <article key={item._id}>
-                    <span><Badge tone={kind === "release" ? "purple" : "blue"}>{item.config?.version || resourceDisplayName(kind)}</Badge><small>{item.config?.owner || "Unassigned"}</small></span>
+                    <span><Badge tone="purple">{item.config?.version || resourceDisplayName(kind)}</Badge><small>{item.config?.owner || "Unassigned"}</small></span>
                     <b>{item.name}</b>
                     <small>{start || "No start date"} → {end || "No target date"}</small>
                     <Progress value={progress} tone={progress >= 80 ? "green" : "purple"} />
@@ -221,7 +295,7 @@ export function ResourcesLive({ toast }: { toast: (s: string) => void }) {
 
         {viewMode === "grid" ? (
           rows.length ? (
-            <div className="resource-visual-items-grid" style={{ marginTop: "16px" }}>
+            kind === "epic" ? null : <div className="resource-visual-items-grid" style={{ marginTop: "16px" }}>
               {rows.map((item: any) => (
                 <div key={item._id} className="resource-visual-item-card">
                   <ResourceVisualPreview kind={kind} item={item} />

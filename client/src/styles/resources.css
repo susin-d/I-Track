@@ -58,6 +58,132 @@
   font-size: 10px;
 }
 
+.epic-roadmap {
+  overflow: hidden;
+  padding: 0;
+}
+
+.epic-roadmap-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.epic-roadmap-summary {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.epic-roadmap-summary span {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  background: var(--surface-2, #f8fafc);
+}
+
+.epic-roadmap-summary b { color: var(--text); }
+
+.epic-roadmap-scale {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-left: min(390px, 34%);
+  padding: 12px 24px 10px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.epic-roadmap-scale span:nth-child(2) { text-align: center; }
+.epic-roadmap-scale span:last-child { text-align: right; }
+
+.epic-roadmap-row {
+  display: grid;
+  grid-template-columns: minmax(280px, 34%) minmax(280px, 1fr) auto;
+  align-items: center;
+  gap: 22px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.18s ease;
+}
+
+.epic-roadmap-row:last-child { border-bottom: 0; }
+.epic-roadmap-row:hover { background: color-mix(in srgb, var(--purple) 3%, var(--surface)); }
+
+.epic-roadmap-details { min-width: 0; }
+.epic-roadmap-details > b { display: block; margin-top: 9px; font-size: 14px; }
+.epic-roadmap-details p { margin: 4px 0 9px; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.epic-roadmap-keyline,
+.epic-roadmap-keyline > span,
+.epic-roadmap-dates,
+.epic-roadmap-actions {
+  display: flex;
+  align-items: center;
+}
+
+.epic-roadmap-keyline { justify-content: space-between; gap: 10px; }
+.epic-roadmap-keyline > span { gap: 5px; color: var(--muted); font-size: 11px; }
+.epic-roadmap-keyline svg, .epic-roadmap-dates svg { width: 12px; height: 12px; }
+.epic-roadmap-dates { gap: 6px; color: var(--muted); font-size: 10px; }
+
+.epic-roadmap-track {
+  position: relative;
+  height: 40px;
+  border-radius: 8px;
+  background-color: var(--surface-2, #f8fafc);
+  background-image: linear-gradient(to right, var(--border) 1px, transparent 1px);
+  background-size: 25% 100%;
+  border: 1px solid var(--border);
+}
+
+.epic-roadmap-bar {
+  position: absolute;
+  top: 7px;
+  height: 24px;
+  min-width: 58px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--purple) 18%, var(--surface));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--purple) 18%, transparent);
+}
+
+.epic-roadmap-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7c3aed, #a855f7);
+}
+
+.epic-roadmap-bar strong {
+  position: absolute;
+  inset: 0 8px 0 auto;
+  display: flex;
+  align-items: center;
+  color: var(--text);
+  font-size: 10px;
+}
+
+.epic-roadmap-track.unscheduled { border-style: dashed; background-image: none; }
+.epic-roadmap-placeholder { display: flex; height: 100%; align-items: center; justify-content: center; gap: 7px; color: var(--muted); font-size: 11px; }
+.epic-roadmap-placeholder svg { width: 14px; height: 14px; }
+.epic-roadmap-actions { gap: 4px; }
+.epic-roadmap-actions .btn { gap: 4px; }
+.epic-roadmap-actions svg { width: 12px; height: 12px; }
+
+@media (max-width: 900px) {
+  .epic-roadmap-head { flex-direction: column; }
+  .epic-roadmap-scale { display: none; }
+  .epic-roadmap-row { grid-template-columns: 1fr; gap: 12px; }
+  .epic-roadmap-actions { justify-content: flex-end; }
+}
+
 .resource-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
