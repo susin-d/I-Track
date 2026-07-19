@@ -20,6 +20,7 @@ import { applySlaState, cycleMetricsForTickets, normalizeSlaPolicy, slaFieldsFor
 import { filterReportRows } from "../services/reporting.js";
 import { applyWorkspaceRules } from "../services/rules.js";
 import { ensureWorkspaceRoles, publicRole } from "../services/roles.js";
+import { refreshWorkspaceProgress } from "../services/progressRollups.js";
 import { accessibleProjectIds, canAccessProject, canAccessTicket, canManageProject, hasWorkspaceWideAccess, projectScope, requireTicketAccess } from "../services/resourceAccess.js";
 
 const router = Router();
@@ -230,6 +231,7 @@ router.route("/sprints")
     if (!project) return res.status(404).json({ message: "Project not found" });
     if (!canManageProject(req, project)) return res.status(403).json({ message: "Only an assigned manager can plan this project" });
     const sprint = await Sprint.create({ ...body, organization: orgId(req) });
+    await refreshWorkspaceProgress(orgId(req)!);
     return res.status(201).json({ sprint: await sprint.populate("project", "key name organization") });
   });
 
@@ -246,6 +248,7 @@ router.route("/cycles")
     if (sprintCount !== new Set(body.sprints).size) return res.status(400).json({ message: "One or more sprints are invalid" });
     if (selectedSprints.some((sprint: any) => !canAccessProject(req, sprint.project))) return res.status(403).json({ message: "You do not have access to one or more sprint projects" });
     const cycle = await Cycle.create({ ...body, organization: orgId(req) });
+    await refreshWorkspaceProgress(orgId(req)!);
     return res.status(201).json({ cycle: await cycle.populate({ path: "sprints", select: "name status startDate endDate plannedPoints completedPoints riskScore organization project", populate: { path: "project", select: "key name organization" } }) });
   });
 
@@ -268,6 +271,7 @@ router.route("/cycles/:id")
     if (!existing) return res.status(404).json({ message: "Cycle not found" });
     if (!hasWorkspaceWideAccess(req) && !(existing.sprints || []).some((sprint: any) => canAccessProject(req, sprint.project))) return res.status(403).json({ message: "You do not have access to this cycle" });
     const cycle = await Cycle.findOneAndUpdate({ _id: req.params.id, organization: orgId(req) }, body, { new: true }).populate({ path: "sprints", select: "name status startDate endDate plannedPoints completedPoints riskScore organization project", populate: { path: "project", select: "key name organization" } });
+    await refreshWorkspaceProgress(orgId(req)!);
     return cycle ? res.json({ cycle }) : res.status(404).json({ message: "Cycle not found" });
   })
   .delete(requireRole(["admin", "manager"]), async (req: AuthRequest, res) => {
@@ -293,6 +297,7 @@ router.route("/sprints/:id")
     }
     const sprint = await Sprint.findOneAndUpdate({ _id: req.params.id, organization: orgId(req) }, body, { new: true }).populate("project", "key name organization");
     if (!sprint) return res.status(404).json({ message: "Sprint not found" });
+    await refreshWorkspaceProgress(orgId(req)!);
     return res.json({ sprint });
   })
   .delete(requireRole(["admin", "manager"]), async (req: AuthRequest, res) => {
@@ -303,6 +308,7 @@ router.route("/sprints/:id")
     const sprint = await Sprint.findOneAndDelete({ _id: req.params.id, organization: orgId(req) });
     if (!sprint) return res.status(404).json({ message: "Sprint not found" });
     await Ticket.updateMany({ sprint: sprint._id, organization: orgId(req) }, { $unset: { sprint: "" } });
+    await refreshWorkspaceProgress(orgId(req)!);
     return res.json({ ok: true });
   });
 
@@ -359,6 +365,7 @@ router.route("/tickets")
     const ticketId = await measureAsync("tickets.create.allocate_id", () => nextTicketId(req, { _id: String(project._id), key: project.key }));
     const ticket = await measureAsync("tickets.create.insert", () => Ticket.create({ ...body, ...slaFieldsForTicket(body.priority, now, organization?.settings?.slaPolicy), slaStatus: "healthy", organization: orgId(req), reporter: userId(req), ticketId, history: [{ event: "Created", createdAt: now }], statusTransitions: [statusTransition(undefined, body.status, now, userId(req))] }));
     await applyWorkspaceRules(orgId(req)!, "ticket.created", ticket);
+    await refreshWorkspaceProgress(orgId(req)!);
     const populatedTicket = await measureAsync("tickets.create.populate", () => ticket.populate(ticketPopulation));
     return res.status(201).json({ ticket: populatedTicket });
   });
@@ -404,6 +411,7 @@ router.patch("/tickets/:id", requireRole(["admin", "manager", "engineer", "desig
   await applySlaState(ticket).save();
   if (body.status && body.status !== previousStatus) await applyWorkspaceRules(orgId(req)!, "ticket.status.changed", ticket);
   if (body.assignee !== undefined && String(body.assignee || "") !== previousAssignee) await applyWorkspaceRules(orgId(req)!, "ticket.assigned", ticket);
+  await refreshWorkspaceProgress(orgId(req)!);
   return res.json({ ticket });
 });
 
@@ -432,6 +440,7 @@ router.patch("/tickets/:id/status", requireRole(["admin", "manager", "engineer",
   applySlaState(existing, now);
   await existing.save();
   await applyWorkspaceRules(orgId(req)!, "ticket.status.changed", existing);
+  await refreshWorkspaceProgress(orgId(req)!);
   const ticket = await existing.populate(ticketPopulation);
   if (!ticket) return res.status(404).json({ message: "Ticket not found" });
   return res.json({ ticket });
