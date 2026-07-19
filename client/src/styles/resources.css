@@ -277,13 +277,14 @@
 .resource-category-tabs {
   display: flex;
   gap: 8px;
+  min-width: 0;
   overflow-x: auto;
   padding-bottom: 12px;
   margin-bottom: 16px;
   border-bottom: 1px solid var(--border);
 }
 
-.resource-tab-btn {
+.resource-category-tabs > button {
   padding: 6px 14px;
   border-radius: 20px;
   font-size: 12px;
@@ -299,12 +300,12 @@
   transition: all 0.15s ease;
 }
 
-.resource-tab-btn:hover {
+.resource-category-tabs > button:hover {
   background: var(--surface);
   border-color: var(--purple-strong);
 }
 
-.resource-tab-btn.active {
+.resource-category-tabs > button.active {
   background: var(--purple-strong);
   color: white;
   border-color: var(--purple-strong);
@@ -317,7 +318,7 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
-.resource-tab-btn:not(.active) .resource-tab-badge {
+.resource-category-tabs > button:not(.active) .resource-tab-badge {
   background: var(--border);
 }
 

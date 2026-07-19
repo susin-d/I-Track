@@ -834,8 +834,12 @@ export function CyclesLive({ toast }: { toast: (s: string) => void }) {
   const { dashboard, refetch, role } = useWorkspace();
   const [creating, setCreating] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingCycle, setEditingCycle] = useState<any>(null);
+  const [updating, setUpdating] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
 
   const cycles = dashboard?.cycles || [];
   const sprints = dashboard?.sprints || [];
@@ -892,6 +896,38 @@ export function CyclesLive({ toast }: { toast: (s: string) => void }) {
       await refetch();
     } catch (error) {
       toast(error instanceof Error ? error.message : "Failed to delete cycle");
+    }
+  };
+
+  const openEditCycle = (cycle: any) => {
+    setEditingCycle(cycle);
+    setEditStartDate(String(cycle.startDate || "").slice(0, 10));
+    setEditEndDate(String(cycle.endDate || "").slice(0, 10));
+  };
+
+  const updateCycle = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingCycle) return;
+    const values = new FormData(event.currentTarget);
+    setUpdating(true);
+    try {
+      await api(`/cycles/${editingCycle._id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: values.get("name"),
+          goal: values.get("goal"),
+          startDate: values.get("startDate"),
+          endDate: values.get("endDate"),
+          sprints: values.getAll("sprints"),
+        }),
+      });
+      toast("Cycle updated");
+      setEditingCycle(null);
+      await refetch();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Failed to update cycle");
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -955,7 +991,12 @@ export function CyclesLive({ toast }: { toast: (s: string) => void }) {
                       </div>
                       <p>{cycle.goal || "Add a goal to give this cycle a clear outcome."}</p>
                     </div>
-                    {isLeader && <button type="button" className="icon-btn cycle-delete" onClick={() => deleteCycle(cycle._id)} aria-label={`Delete ${cycle.name}`}><Icons.Trash2 /></button>}
+                    {isLeader && (
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <button type="button" className="icon-btn" onClick={() => openEditCycle(cycle)} aria-label={`Edit ${cycle.name}`}><Icons.Pencil /></button>
+                        <button type="button" className="icon-btn cycle-delete" onClick={() => deleteCycle(cycle._id)} aria-label={`Delete ${cycle.name}`}><Icons.Trash2 /></button>
+                      </div>
+                    )}
                   </div>
                   <div className="cycle-card-meta">
                     <span><Icons.CalendarDays /><span><small>Timeline</small><b>{new Date(cycle.startDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })} – {new Date(cycle.endDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</b></span></span>
@@ -1051,6 +1092,54 @@ export function CyclesLive({ toast }: { toast: (s: string) => void }) {
                 <Button variant="primary" type="submit" loading={creating} loadingLabel="Creating...">
                   Create cycle
                 </Button>
+              </div>
+            </form>
+          </section>
+        </ModalOverlay>
+      )}
+
+      {editingCycle && (
+        <ModalOverlay onClose={() => { if (!updating) setEditingCycle(null); }} ariaLabel="Edit cycle">
+          <section className="card invite-review workspace-create-dialog" aria-labelledby="edit-cycle-title" style={{ maxWidth: "500px", width: "100%" }}>
+            <button className="icon-btn modal-close" onClick={() => setEditingCycle(null)} disabled={updating} aria-label="Close edit cycle dialog">
+              <Icons.X />
+            </button>
+            <Badge tone="purple">EDIT CYCLE</Badge>
+            <h2 id="edit-cycle-title" style={{ marginTop: "8px" }}>Update cycle plan</h2>
+            <p style={{ color: "var(--muted)", fontSize: "13px", marginBottom: "20px" }}>Change the outcome, delivery window, or linked sprints. Status follows sprint delivery automatically.</p>
+            <form onSubmit={updateCycle} className="cycle-form">
+              <label className="field">
+                <span>Cycle name</span>
+                <input name="name" defaultValue={editingCycle.name} required disabled={updating} />
+              </label>
+              <label className="field">
+                <span>Goal <small>Optional</small></span>
+                <textarea name="goal" defaultValue={editingCycle.goal || ""} disabled={updating} />
+              </label>
+              <div className="cycle-date-fields" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <MiniDatePicker name="startDate" label="Starts" value={editStartDate} onChange={setEditStartDate} required disabled={updating} />
+                <MiniDatePicker name="endDate" label="Ends" value={editEndDate} onChange={setEditEndDate} required disabled={updating} />
+              </div>
+              <div className="field" style={{ marginBottom: "20px" }}>
+                <span>Sprints <small>{sprints.length} available</small></span>
+                <div className="check-list cycle-sprint-list" style={{ maxHeight: "150px", overflowY: "auto" }}>
+                  {sprints.length ? sprints.map((sprint: any) => (
+                    <label key={sprint._id} style={{ display: "flex", alignItems: "center", gap: "8px", margin: "6px 0" }}>
+                      <input
+                        type="checkbox"
+                        name="sprints"
+                        value={sprint._id}
+                        defaultChecked={(editingCycle.sprints || []).some((linked: any) => String(linked._id || linked) === String(sprint._id))}
+                        disabled={updating}
+                      />
+                      <span>{sprint.name}<small style={{ display: "block", color: "var(--muted)" }}>{sprint.status ? fmt(sprint.status) : "Planned sprint"}</small></span>
+                    </label>
+                  )) : <p>No sprints are available yet.</p>}
+                </div>
+              </div>
+              <div className="form-actions">
+                <Button onClick={() => setEditingCycle(null)} disabled={updating}>Cancel</Button>
+                <Button variant="primary" type="submit" loading={updating} loadingLabel="Saving...">Save changes</Button>
               </div>
             </form>
           </section>
